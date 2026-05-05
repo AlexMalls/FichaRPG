@@ -31,21 +31,60 @@ const Input = ({ label, ...props }) => (
   </div>
 );
 
-// Select customizado
-const Select = ({ label, options, ...props }) => (
-  <div style={styles.inputGroup}>
-    {label && <label style={styles.label}>{label}</label>}
-    <div style={styles.selectWrapper}>
-      <select style={styles.select} {...props}>
-        <option value="">Selecione um modelo</option>
-        {options.map(opt => (
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
-      </select>
-      <span style={styles.selectArrow}>▼</span>
+// Select customizado moderno
+const Select = ({ label, options, value, onChange, ...props }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleSelect = (opt) => {
+    onChange?.(opt);
+    setIsOpen(false);
+  };
+
+  return (
+    <div style={styles.inputGroup}>
+      {label && <label style={styles.label}>{label}</label>}
+      <div style={styles.customSelectWrapper}>
+        <button
+          type="button"
+          style={{
+            ...styles.customSelectButton,
+            borderColor: isOpen ? theme.colors.text : theme.colors.border,
+          }}
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span style={styles.customSelectText}>
+            {value || 'Selecione um modelo'}
+          </span>
+          <span style={{
+            ...styles.customSelectIcon,
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.3s ease',
+          }}>
+            ↓
+          </span>
+        </button>
+
+        {isOpen && (
+          <div style={styles.customSelectDropdown}>
+            {options.map((opt, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSelect(opt)}
+                style={{
+                  ...styles.customSelectOption,
+                  background: value === opt ? 'rgba(232, 213, 240, 0.15)' : 'transparent',
+                }}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Botão primário
 const ButtonPrimary = ({ children, ...props }) => (
@@ -63,6 +102,7 @@ const EnnoisSite = () => {
   const [currentPage, setCurrentPage] = useState('fichas');
   const [fichas, setFichas] = useState([]);
   const [showNewFichaForm, setShowNewFichaForm] = useState(false);
+  const [selectedModelo, setSelectedModelo] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -74,9 +114,15 @@ const EnnoisSite = () => {
   const handleNewFicha = (e) => {
     e.preventDefault();
     const nomeFicha = e.target.nome.value;
-    const modeloFicha = e.target.modelo.value;
-    setFichas([...fichas, { id: Date.now(), nome: nomeFicha, modelo: modeloFicha }]);
+    
+    if (!selectedModelo) {
+      alert('Selecione um modelo de ficha');
+      return;
+    }
+    
+    setFichas([...fichas, { id: Date.now(), nome: nomeFicha, modelo: selectedModelo }]);
     setShowNewFichaForm(false);
+    setSelectedModelo('');
     e.target.reset();
   };
 
@@ -171,7 +217,8 @@ const EnnoisSite = () => {
                         name="modelo"
                         label="Modelo de Ficha:"
                         options={['D&D 5e']}
-                        required
+                        value={selectedModelo}
+                        onChange={setSelectedModelo}
                       />
                       <div style={styles.formButtons}>
                         <ButtonPrimary type="submit">Criar</ButtonPrimary>
@@ -307,27 +354,59 @@ const styles = {
   selectWrapper: {
     position: 'relative',
   },
-  select: {
+  customSelectWrapper: {
+    position: 'relative',
+  },
+  customSelectButton: {
     width: '100%',
     padding: '0.75rem 1rem',
-    background: 'rgba(0, 0, 0, 0.3)',
-    border: `1px solid ${theme.colors.border}`,
+    background: 'rgba(0, 0, 0, 0.5)',
+    border: `2px solid ${theme.colors.border}`,
     borderRadius: '0.5rem',
     color: theme.colors.text,
     fontSize: '1rem',
     cursor: 'pointer',
-    appearance: 'none',
     transition: 'all 0.3s ease',
     outline: 'none',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    boxShadow: `0 0 12px rgba(232, 213, 240, 0.08)`,
+    fontWeight: '500',
   },
-  selectArrow: {
+  customSelectText: {
+    flex: 1,
+    textAlign: 'left',
+  },
+  customSelectIcon: {
+    fontSize: '0.8rem',
+    marginLeft: '0.5rem',
+  },
+  customSelectDropdown: {
     position: 'absolute',
-    right: '1rem',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    pointerEvents: 'none',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: '0.5rem',
+    background: 'rgba(15, 10, 26, 0.95)',
+    border: `2px solid ${theme.colors.border}`,
+    borderRadius: '0.5rem',
+    overflow: 'hidden',
+    boxShadow: `0 8px 24px rgba(0, 0, 0, 0.4)`,
+    zIndex: 10,
+    backdropFilter: 'blur(10px)',
+  },
+  customSelectOption: {
+    width: '100%',
+    padding: '0.75rem 1rem',
+    border: 'none',
+    background: 'transparent',
     color: theme.colors.text,
-    fontSize: '0.75rem',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    textAlign: 'left',
+    transition: 'all 0.2s ease',
+    borderBottom: `1px solid ${theme.colors.borderLight}`,
   },
   buttonPrimary: {
     background: theme.colors.accent,
