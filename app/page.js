@@ -4,12 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { 
   collection, 
   addDoc, 
-  getDocs, 
   deleteDoc, 
   doc, 
   query, 
   orderBy,
-  onSnapshot 
+  onSnapshot,
+  updateDoc 
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -109,7 +109,6 @@ const ButtonDanger = ({ children, ...props }) => (
   <button style={styles.buttonDanger} {...props}>{children}</button>
 );
 
-// Componente de Loading
 const LoadingSpinner = () => (
   <div style={styles.spinner}>
     <div style={styles.spinnerDot}></div>
@@ -117,7 +116,6 @@ const LoadingSpinner = () => (
   </div>
 );
 
-// Toast de notificação
 const Toast = ({ message, type = 'success' }) => (
   <div style={{
     ...styles.toast,
@@ -126,6 +124,195 @@ const Toast = ({ message, type = 'success' }) => (
     {message}
   </div>
 );
+
+// ============ CARD EXPANDÍVEL ============
+const ExpandableCard = ({ title, children, expanded, onToggle }) => (
+  <div style={{
+    ...styles.card,
+    maxHeight: expanded ? '500px' : '60px',
+    transition: 'max-height 0.3s ease, box-shadow 0.3s ease',
+    boxShadow: expanded ? `0 8px 24px rgba(232, 213, 240, 0.1)` : `0 4px 12px rgba(0, 0, 0, 0.2)`
+  }}>
+    {/* Header do Card */}
+    <div style={styles.cardHeader}>
+      <h3 style={styles.cardTitle}>{title}</h3>
+      <button
+        onClick={onToggle}
+        style={{
+          ...styles.moreDetailsButton,
+          transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+          transition: 'transform 0.3s ease'
+        }}
+        title={expanded ? 'Menos detalhes' : 'Mais detalhes'}
+      >
+        ▼
+      </button>
+    </div>
+
+    {/* Conteúdo do Card (expandível) */}
+    {expanded && (
+      <div style={styles.cardContent}>
+        {children}
+      </div>
+    )}
+  </div>
+);
+
+// ============ PÁGINA DE VISUALIZAÇÃO DA FICHA ============
+const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [formData, setFormData] = useState({
+    nome: ficha.nome || '',
+    classe: ficha.classe || '',
+    nivel: ficha.nivel || '',
+    raca: ficha.raca || '',
+    antecedente: ficha.antecedente || '',
+    alinhamento: ficha.alinhamento || '',
+    xp: ficha.xp || '',
+  });
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateDoc(doc(db, 'fichas', ficha.id), formData);
+      onUpdate();
+    } catch (error) {
+      console.error('Erro ao salvar:', error);
+    }
+  };
+
+  return (
+    <div style={styles.detailContainer}>
+      {/* Header com botão voltar */}
+      <div style={styles.detailHeader}>
+        <button 
+          onClick={onBack}
+          style={styles.backButton}
+          title="Voltar"
+        >
+          ← Voltar
+        </button>
+        <h1 style={styles.detailTitle}>{ficha.nome}</h1>
+        <div style={{ width: '80px' }}></div>
+      </div>
+
+      <div style={styles.detailContent}>
+        {/* Menu Lateral */}
+        <aside style={styles.sidebar}>
+          <div style={styles.sidebarContent}>
+            <ExpandableCard
+              title="INFORMAÇÕES BÁSICAS"
+              expanded={isExpanded}
+              onToggle={() => setIsExpanded(!isExpanded)}
+            >
+              <div style={styles.cardFields}>
+                <div style={styles.fieldGroup}>
+                  <label style={styles.fieldLabel}>Nome:</label>
+                  <input
+                    type="text"
+                    value={formData.nome}
+                    onChange={(e) => handleInputChange('nome', e.target.value)}
+                    style={styles.fieldInput}
+                    placeholder="Nome do personagem"
+                  />
+                </div>
+
+                <div style={styles.fieldGroup}>
+                  <label style={styles.fieldLabel}>Classe:</label>
+                  <input
+                    type="text"
+                    value={formData.classe}
+                    onChange={(e) => handleInputChange('classe', e.target.value)}
+                    style={styles.fieldInput}
+                    placeholder="Ex: Guerreiro"
+                  />
+                </div>
+
+                <div style={styles.fieldGroup}>
+                  <label style={styles.fieldLabel}>Nível:</label>
+                  <input
+                    type="number"
+                    value={formData.nivel}
+                    onChange={(e) => handleInputChange('nivel', e.target.value)}
+                    style={styles.fieldInput}
+                    placeholder="1"
+                    min="1"
+                    max="20"
+                  />
+                </div>
+
+                <div style={styles.fieldGroup}>
+                  <label style={styles.fieldLabel}>Raça:</label>
+                  <input
+                    type="text"
+                    value={formData.raca}
+                    onChange={(e) => handleInputChange('raca', e.target.value)}
+                    style={styles.fieldInput}
+                    placeholder="Ex: Humano"
+                  />
+                </div>
+
+                <div style={styles.fieldGroup}>
+                  <label style={styles.fieldLabel}>Antecedente:</label>
+                  <input
+                    type="text"
+                    value={formData.antecedente}
+                    onChange={(e) => handleInputChange('antecedente', e.target.value)}
+                    style={styles.fieldInput}
+                    placeholder="Ex: Soldado"
+                  />
+                </div>
+
+                <div style={styles.fieldGroup}>
+                  <label style={styles.fieldLabel}>Alinhamento:</label>
+                  <input
+                    type="text"
+                    value={formData.alinhamento}
+                    onChange={(e) => handleInputChange('alinhamento', e.target.value)}
+                    style={styles.fieldInput}
+                    placeholder="Ex: Neutro Bom"
+                  />
+                </div>
+
+                <div style={styles.fieldGroup}>
+                  <label style={styles.fieldLabel}>Pontos de Experiência:</label>
+                  <input
+                    type="number"
+                    value={formData.xp}
+                    onChange={(e) => handleInputChange('xp', e.target.value)}
+                    style={styles.fieldInput}
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                <button
+                  onClick={handleSave}
+                  style={styles.saveButton}
+                >
+                  💾 Salvar
+                </button>
+              </div>
+            </ExpandableCard>
+          </div>
+        </aside>
+
+        {/* Área principal (vazio por enquanto) */}
+        <main style={styles.mainArea}>
+          <div style={styles.emptyState}>
+            <p style={{ opacity: 0.6 }}>Selecione um card no menu lateral</p>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
 
 // ============ COMPONENTE PRINCIPAL ============
 const EnnoisSite = () => {
@@ -136,6 +323,7 @@ const EnnoisSite = () => {
   const [selectedModelo, setSelectedModelo] = useState('');
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [selectedFicha, setSelectedFicha] = useState(null);
 
   // ============ CARREGAR FICHAS DO FIRESTORE ============
   useEffect(() => {
@@ -144,7 +332,6 @@ const EnnoisSite = () => {
         setLoading(true);
         const q = query(collection(db, 'fichas'), orderBy('dataCriacao', 'desc'));
         
-        // Listener em tempo real
         const unsubscribe = onSnapshot(q, (snapshot) => {
           const fichasData = snapshot.docs.map(doc => ({
             id: doc.id,
@@ -165,7 +352,6 @@ const EnnoisSite = () => {
     carregarFichas();
   }, []);
 
-  // ============ HIDE WELCOME SCREEN ============
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowWelcome(false);
@@ -173,13 +359,11 @@ const EnnoisSite = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // ============ MOSTRAR TOAST ============
   const mostrarToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // ============ CRIAR NOVA FICHA ============
   const handleNewFicha = async (e) => {
     e.preventDefault();
     const nomeFicha = e.target.nome.value;
@@ -192,12 +376,17 @@ const EnnoisSite = () => {
     try {
       setLoading(true);
       
-      // Salvar no Firestore
       await addDoc(collection(db, 'fichas'), {
         nome: nomeFicha,
         modelo: selectedModelo,
         dataCriacao: new Date(),
         ultimaEdicao: new Date(),
+        classe: '',
+        nivel: '',
+        raca: '',
+        antecedente: '',
+        alinhamento: '',
+        xp: '',
       });
 
       mostrarToast(`Ficha "${nomeFicha}" criada com sucesso!`, 'success');
@@ -212,7 +401,6 @@ const EnnoisSite = () => {
     }
   };
 
-  // ============ DELETAR FICHA ============
   const handleDeleteFicha = async (fichaId, fichaNome) => {
     if (window.confirm(`Tem certeza que quer deletar "${fichaNome}"?`)) {
       try {
@@ -228,7 +416,6 @@ const EnnoisSite = () => {
     }
   };
 
-  // ============ FORMATAR DATA ============
   const formatarData = (data) => {
     if (!data) return '';
     const date = data.toDate ? data.toDate() : new Date(data);
@@ -241,12 +428,26 @@ const EnnoisSite = () => {
     });
   };
 
+  // Se está visualizando uma ficha, mostra a página de detalhes
+  if (selectedFicha) {
+    return (
+      <div style={styles.container}>
+        {toast && <Toast message={toast.message} type={toast.type} />}
+        <FichaDetailView 
+          ficha={selectedFicha} 
+          onBack={() => setSelectedFicha(null)}
+          onUpdate={() => {
+            mostrarToast('Ficha atualizada com sucesso!', 'success');
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
-      {/* Toast de notificação */}
       {toast && <Toast message={toast.message} type={toast.type} />}
 
-      {/* Tela de Boas-vindas */}
       <div style={{
         ...styles.welcome,
         opacity: showWelcome ? 1 : 0,
@@ -258,10 +459,8 @@ const EnnoisSite = () => {
         </div>
       </div>
 
-      {/* Conteúdo Principal */}
       {!showWelcome && (
         <>
-          {/* Menu */}
           <nav style={styles.nav}>
             <button 
               style={{
@@ -292,7 +491,6 @@ const EnnoisSite = () => {
             </button>
           </nav>
 
-          {/* Conteúdo */}
           <main style={styles.content}>
             {currentPage === 'fichas' && (
               <div style={styles.page}>
@@ -310,7 +508,11 @@ const EnnoisSite = () => {
                     {!loading && fichas.length > 0 && (
                       <div style={styles.fichasList}>
                         {fichas.map(ficha => (
-                          <div key={ficha.id} style={styles.fichaItem}>
+                          <div 
+                            key={ficha.id} 
+                            style={styles.fichaItem}
+                            onClick={() => setSelectedFicha(ficha)}
+                          >
                             <div style={styles.fichaContent}>
                               <div style={{fontWeight: '600', fontSize: '1.1rem'}}>
                                 {ficha.nome}
@@ -323,14 +525,11 @@ const EnnoisSite = () => {
                               </div>
                             </div>
                             <div style={styles.fichaActions}>
-                              <button 
-                                style={styles.editButton}
-                                title="Editar ficha"
-                              >
-                                ✏️
-                              </button>
                               <ButtonDanger
-                                onClick={() => handleDeleteFicha(ficha.id, ficha.nome)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteFicha(ficha.id, ficha.nome);
+                                }}
                                 title="Deletar ficha"
                               >
                                 🗑️
@@ -397,7 +596,7 @@ const EnnoisSite = () => {
                   <p style={styles.creditsText}>🐉 Ennoia</p>
                   <p style={styles.creditsSubtext}>Site desenvolvido com Firebase Firestore</p>
                   <p style={{fontSize: '0.9rem', marginTop: '2rem', opacity: 0.6}}>
-                    Versão 1.0 com sincronização em tempo real
+                    Versão 2.0 com visualização de fichas
                   </p>
                 </div>
               </div>
@@ -480,7 +679,7 @@ const styles = {
     height: '300px',
   },
 
-  // ============ COMPONENTES REUTILIZÁVEIS ============
+  // ============ FORMULÁRIOS ============
   formBox: {
     background: theme.colors.bgDark,
     border: `1px solid ${theme.colors.border}`,
@@ -618,6 +817,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     transition: 'all 0.3s ease',
+    cursor: 'pointer',
   },
   fichaContent: {
     flex: 1,
@@ -626,17 +826,6 @@ const styles = {
     display: 'flex',
     gap: '0.5rem',
     marginLeft: '1rem',
-  },
-  editButton: {
-    background: 'rgba(250, 204, 21, 0.1)',
-    border: `1px solid rgba(250, 204, 21, 0.3)`,
-    color: theme.colors.text,
-    padding: '0.5rem 1rem',
-    fontSize: '1rem',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontWeight: '600',
-    transition: 'all 0.2s ease',
   },
   text: {
     fontSize: '1.1rem',
@@ -687,7 +876,140 @@ const styles = {
     color: theme.colors.text,
     zIndex: 2000,
     animation: 'slideIn 0.3s ease',
-  }
+  },
+
+  // ============ PÁGINA DE DETALHES ============
+  detailContainer: {
+    width: '100%',
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    background: theme.colors.bg,
+  },
+  detailHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '2rem',
+    borderBottom: `1px solid ${theme.colors.borderLight}`,
+  },
+  backButton: {
+    background: 'none',
+    border: 'none',
+    color: theme.colors.text,
+    fontSize: '1rem',
+    cursor: 'pointer',
+    padding: '0.5rem 1rem',
+    transition: 'all 0.3s ease',
+    fontWeight: '500',
+  },
+  detailTitle: {
+    fontSize: '1.8rem',
+    fontWeight: '600',
+    margin: 0,
+  },
+  detailContent: {
+    display: 'flex',
+    flex: 1,
+    overflow: 'hidden',
+  },
+  sidebar: {
+    width: '350px',
+    borderRight: `1px solid ${theme.colors.borderLight}`,
+    overflow: 'auto',
+    background: 'rgba(0, 0, 0, 0.2)',
+  },
+  sidebarContent: {
+    padding: '1.5rem',
+  },
+  mainArea: {
+    flex: 1,
+    overflow: 'auto',
+    padding: '2rem',
+  },
+  emptyState: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    textAlign: 'center',
+    color: theme.colors.text,
+  },
+
+  // ============ CARD EXPANSÍVEL ============
+  card: {
+    background: theme.colors.bgDark,
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: '0.75rem',
+    overflow: 'hidden',
+    transition: 'all 0.3s ease',
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '1.5rem',
+    cursor: 'pointer',
+    userSelect: 'none',
+  },
+  cardTitle: {
+    margin: 0,
+    fontSize: '1rem',
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  moreDetailsButton: {
+    background: 'none',
+    border: 'none',
+    color: theme.colors.text,
+    fontSize: '0.8rem',
+    cursor: 'pointer',
+    padding: '0.25rem 0.5rem',
+    transition: 'transform 0.3s ease',
+    opacity: 0.7,
+  },
+  cardContent: {
+    padding: '0 1.5rem 1.5rem 1.5rem',
+    animation: 'expandContent 0.3s ease',
+  },
+  cardFields: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+  },
+  fieldGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+  },
+  fieldLabel: {
+    fontSize: '0.85rem',
+    fontWeight: '500',
+    color: theme.colors.text,
+    opacity: 0.9,
+  },
+  fieldInput: {
+    padding: '0.6rem 0.8rem',
+    background: 'rgba(0, 0, 0, 0.3)',
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: '0.4rem',
+    color: theme.colors.text,
+    fontSize: '0.9rem',
+    transition: 'all 0.3s ease',
+    outline: 'none',
+  },
+  saveButton: {
+    marginTop: '1rem',
+    background: theme.colors.accent,
+    border: 'none',
+    color: '#0f0a1a',
+    padding: '0.6rem 1rem',
+    fontSize: '0.9rem',
+    borderRadius: '0.4rem',
+    cursor: 'pointer',
+    fontWeight: '600',
+    transition: 'all 0.3s ease',
+  },
 };
 
 // Adicionar keyframes para animações
@@ -707,9 +1029,19 @@ const globalStyles = `
       opacity: 1;
     }
   }
+
+  @keyframes expandContent {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 `;
 
-// Injetar estilos globais
 if (typeof document !== 'undefined') {
   const style = document.createElement('style');
   style.innerHTML = globalStyles;
