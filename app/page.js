@@ -18,7 +18,8 @@ const EnnoisSite = () => {
   const handleNewFicha = (e) => {
     e.preventDefault();
     const nomeFicha = e.target.nome.value;
-    setFichas([...fichas, { id: Date.now(), nome: nomeFicha }]);
+    const modeloFicha = e.target.modelo.value;
+    setFichas([...fichas, { id: Date.now(), nome: nomeFicha, modelo: modeloFicha }]);
     setShowNewFichaForm(false);
     e.target.reset();
   };
@@ -89,7 +90,8 @@ const EnnoisSite = () => {
                     <div style={styles.fichasList}>
                       {fichas.map(ficha => (
                         <div key={ficha.id} style={styles.fichaItem}>
-                          {ficha.nome}
+                          <div style={{fontWeight: '600'}}>{ficha.nome}</div>
+                          <div style={{fontSize: '0.9rem', opacity: 0.7}}>Modelo: {ficha.modelo}</div>
                         </div>
                       ))}
                     </div>
@@ -106,14 +108,24 @@ const EnnoisSite = () => {
                 
                 {showNewFichaForm && (
                   <form onSubmit={handleNewFicha} style={styles.form}>
-                    <input
-                      type="text"
-                      name="nome"
-                      placeholder="Nome da ficha"
-                      style={styles.input}
-                      required
-                      autoFocus
-                    />
+                    <div>
+                      <label style={styles.label}>Nome do Personagem:</label>
+                      <input
+                        type="text"
+                        name="nome"
+                        placeholder="Digite o nome"
+                        style={styles.input}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label style={styles.label}>Modelo de Ficha:</label>
+                      <select name="modelo" style={styles.select} required>
+                        <option value="">Selecione um modelo</option>
+                        <option value="D&D 5e">D&D 5e</option>
+                      </select>
+                    </div>
                     <div style={styles.formButtons}>
                       <button type="submit" style={styles.submitButton}>Criar</button>
                       <button 
@@ -237,6 +249,21 @@ const styles = {
     gap: '1rem',
   },
   input: {
+    padding: '0.75rem',
+    background: 'rgba(232, 213, 240, 0.05)',
+    border: '1px solid rgba(232, 213, 240, 0.3)',
+    borderRadius: '0.5rem',
+    color: '#E8D5F0',
+    fontSize: '1rem',
+  },
+  label: {
+    display: 'block',
+    marginBottom: '0.5rem',
+    fontSize: '0.9rem',
+    fontWeight: '500',
+  },
+  select: {
+    width: '100%',
     padding: '0.75rem',
     background: 'rgba(232, 213, 240, 0.05)',
     border: '1px solid rgba(232, 213, 240, 0.3)',
