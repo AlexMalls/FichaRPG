@@ -11,7 +11,7 @@ import {
   orderBy,
   onSnapshot 
 } from 'firebase/firestore';
-import { db } from './firebase'; // Certifique-se de que este arquivo existe!
+import { db } from '../firebase';
 
 // ============ TEMA CENTRALIZADO ============
 const theme = {
