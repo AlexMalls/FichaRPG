@@ -126,16 +126,21 @@ const Toast = ({ message, type = 'success' }) => (
 );
 
 // ============ CARD EXPANDÍVEL ============
-const ExpandableCard = ({ title, children, expanded, onToggle }) => (
+const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
   <div style={{
     ...styles.card,
-    maxHeight: expanded ? '500px' : '60px',
+    maxHeight: expanded ? '300px' : '80px',
     transition: 'max-height 0.3s ease, box-shadow 0.3s ease',
     boxShadow: expanded ? `0 8px 24px rgba(232, 213, 240, 0.1)` : `0 4px 12px rgba(0, 0, 0, 0.2)`
   }}>
     {/* Header do Card */}
     <div style={styles.cardHeader}>
       <h3 style={styles.cardTitle}>{title}</h3>
+    </div>
+
+    {/* Footer com "Detalhes" e Seta */}
+    <div style={styles.cardFooter}>
+      <span style={styles.detalhesText}>Detalhes</span>
       <button
         onClick={onToggle}
         style={{
@@ -152,7 +157,13 @@ const ExpandableCard = ({ title, children, expanded, onToggle }) => (
     {/* Conteúdo do Card (expandível) */}
     {expanded && (
       <div style={styles.cardContent}>
-        {children}
+        <div style={styles.fieldsList}>
+          {fields.map((field, idx) => (
+            <div key={idx} style={styles.fieldListItem}>
+              {field}
+            </div>
+          ))}
+        </div>
       </div>
     )}
   </div>
@@ -161,145 +172,36 @@ const ExpandableCard = ({ title, children, expanded, onToggle }) => (
 // ============ PÁGINA DE VISUALIZAÇÃO DA FICHA ============
 const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [formData, setFormData] = useState({
-    nome: ficha.nome || '',
-    classe: ficha.classe || '',
-    nivel: ficha.nivel || '',
-    raca: ficha.raca || '',
-    antecedente: ficha.antecedente || '',
-    alinhamento: ficha.alinhamento || '',
-    xp: ficha.xp || '',
-  });
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleSave = async () => {
-    try {
-      await updateDoc(doc(db, 'fichas', ficha.id), formData);
-      onUpdate();
-    } catch (error) {
-      console.error('Erro ao salvar:', error);
-    }
-  };
+  const camposBasicos = [
+    'Nome',
+    'Classe',
+    'Nível',
+    'Raça',
+    'Antecedente',
+    'Alinhamento',
+    'Pontos de Experiência'
+  ];
 
   return (
     <div style={styles.detailContainer}>
-      {/* Header com botão voltar */}
-      <div style={styles.detailHeader}>
-        <button 
-          onClick={onBack}
-          style={styles.backButton}
-          title="Voltar"
-        >
-          ← Voltar
-        </button>
-        <h1 style={styles.detailTitle}>{ficha.nome}</h1>
-        <div style={{ width: '80px' }}></div>
-      </div>
-
       <div style={styles.detailContent}>
         {/* Menu Lateral */}
         <aside style={styles.sidebar}>
           <div style={styles.sidebarContent}>
+            <button 
+              onClick={onBack}
+              style={styles.backButtonSidebar}
+              title="Voltar à lista"
+            >
+              ← Voltar
+            </button>
             <ExpandableCard
               title="INFORMAÇÕES BÁSICAS"
+              fields={camposBasicos}
               expanded={isExpanded}
               onToggle={() => setIsExpanded(!isExpanded)}
-            >
-              <div style={styles.cardFields}>
-                <div style={styles.fieldGroup}>
-                  <label style={styles.fieldLabel}>Nome:</label>
-                  <input
-                    type="text"
-                    value={formData.nome}
-                    onChange={(e) => handleInputChange('nome', e.target.value)}
-                    style={styles.fieldInput}
-                    placeholder="Nome do personagem"
-                  />
-                </div>
-
-                <div style={styles.fieldGroup}>
-                  <label style={styles.fieldLabel}>Classe:</label>
-                  <input
-                    type="text"
-                    value={formData.classe}
-                    onChange={(e) => handleInputChange('classe', e.target.value)}
-                    style={styles.fieldInput}
-                    placeholder="Ex: Guerreiro"
-                  />
-                </div>
-
-                <div style={styles.fieldGroup}>
-                  <label style={styles.fieldLabel}>Nível:</label>
-                  <input
-                    type="number"
-                    value={formData.nivel}
-                    onChange={(e) => handleInputChange('nivel', e.target.value)}
-                    style={styles.fieldInput}
-                    placeholder="1"
-                    min="1"
-                    max="20"
-                  />
-                </div>
-
-                <div style={styles.fieldGroup}>
-                  <label style={styles.fieldLabel}>Raça:</label>
-                  <input
-                    type="text"
-                    value={formData.raca}
-                    onChange={(e) => handleInputChange('raca', e.target.value)}
-                    style={styles.fieldInput}
-                    placeholder="Ex: Humano"
-                  />
-                </div>
-
-                <div style={styles.fieldGroup}>
-                  <label style={styles.fieldLabel}>Antecedente:</label>
-                  <input
-                    type="text"
-                    value={formData.antecedente}
-                    onChange={(e) => handleInputChange('antecedente', e.target.value)}
-                    style={styles.fieldInput}
-                    placeholder="Ex: Soldado"
-                  />
-                </div>
-
-                <div style={styles.fieldGroup}>
-                  <label style={styles.fieldLabel}>Alinhamento:</label>
-                  <input
-                    type="text"
-                    value={formData.alinhamento}
-                    onChange={(e) => handleInputChange('alinhamento', e.target.value)}
-                    style={styles.fieldInput}
-                    placeholder="Ex: Neutro Bom"
-                  />
-                </div>
-
-                <div style={styles.fieldGroup}>
-                  <label style={styles.fieldLabel}>Pontos de Experiência:</label>
-                  <input
-                    type="number"
-                    value={formData.xp}
-                    onChange={(e) => handleInputChange('xp', e.target.value)}
-                    style={styles.fieldInput}
-                    placeholder="0"
-                    min="0"
-                  />
-                </div>
-
-                <button
-                  onClick={handleSave}
-                  style={styles.saveButton}
-                >
-                  💾 Salvar
-                </button>
-              </div>
-            </ExpandableCard>
+            />
           </div>
         </aside>
 
@@ -439,6 +341,8 @@ const EnnoisSite = () => {
           onUpdate={() => {
             mostrarToast('Ficha atualizada com sucesso!', 'success');
           }}
+          selectedFicha={selectedFicha}
+          setSelectedFicha={setSelectedFicha}
         />
       </div>
     );
@@ -886,129 +790,126 @@ const styles = {
     flexDirection: 'column',
     background: theme.colors.bg,
   },
-  detailHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '2rem',
-    borderBottom: `1px solid ${theme.colors.borderLight}`,
-  },
-  backButton: {
-    background: 'none',
-    border: 'none',
-    color: theme.colors.text,
-    fontSize: '1rem',
-    cursor: 'pointer',
-    padding: '0.5rem 1rem',
-    transition: 'all 0.3s ease',
-    fontWeight: '500',
-  },
-  detailTitle: {
-    fontSize: '1.8rem',
-    fontWeight: '600',
-    margin: 0,
-  },
   detailContent: {
     display: 'flex',
     flex: 1,
     overflow: 'hidden',
   },
   sidebar: {
-    width: '350px',
+    width: '280px',
     borderRight: `1px solid ${theme.colors.borderLight}`,
     overflow: 'auto',
     background: 'rgba(0, 0, 0, 0.2)',
+    display: 'flex',
+    flexDirection: 'column',
   },
   sidebarContent: {
-    padding: '1.5rem',
+    padding: '1.5rem 1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+  },
+  backButtonSidebar: {
+    background: 'none',
+    border: 'none',
+    color: theme.colors.text,
+    fontSize: '0.95rem',
+    cursor: 'pointer',
+    padding: '0.75rem 1rem',
+    transition: 'all 0.3s ease',
+    fontWeight: '500',
+    textAlign: 'left',
+    borderRadius: '0.5rem',
+    opacity: 0.8,
   },
   mainArea: {
     flex: 1,
     overflow: 'auto',
     padding: '2rem',
-  },
-  emptyState: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100%',
+  },
+  emptyState: {
     textAlign: 'center',
     color: theme.colors.text,
+    opacity: 0.6,
   },
 
-  // ============ CARD EXPANSÍVEL ============
+  // ============ CARD EXPANDÍVEL ============
   card: {
     background: theme.colors.bgDark,
     border: `1px solid ${theme.colors.border}`,
     borderRadius: '0.75rem',
     overflow: 'hidden',
     transition: 'all 0.3s ease',
+    width: '100%',
+    maxWidth: '250px',
   },
   cardHeader: {
     display: 'flex',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: '1.5rem',
-    cursor: 'pointer',
+    padding: '1.2rem 1rem',
+    cursor: 'default',
     userSelect: 'none',
+    minHeight: '50px',
+  },
+  cardFooter: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    padding: '0.5rem 1rem 0.8rem 1rem',
+    borderTop: `1px solid ${theme.colors.borderLight}`,
   },
   cardTitle: {
     margin: 0,
-    fontSize: '1rem',
+    fontSize: '0.95rem',
     fontWeight: '600',
     color: theme.colors.text,
+    textAlign: 'center',
+    flex: 1,
+    letterSpacing: '0.5px',
   },
   moreDetailsButton: {
     background: 'none',
     border: 'none',
     color: theme.colors.text,
-    fontSize: '0.8rem',
+    fontSize: '0.6rem',
     cursor: 'pointer',
-    padding: '0.25rem 0.5rem',
+    padding: '0.2rem 0.4rem',
     transition: 'transform 0.3s ease',
-    opacity: 0.7,
+    opacity: 0.6,
+    marginLeft: '0.4rem',
+  },
+  detalhesText: {
+    fontSize: '0.75rem',
+    color: theme.colors.text,
+    opacity: 0.6,
+    fontWeight: '500',
+    letterSpacing: '0.5px',
   },
   cardContent: {
-    padding: '0 1.5rem 1.5rem 1.5rem',
+    padding: '1rem 1.2rem 1.2rem 1.2rem',
     animation: 'expandContent 0.3s ease',
+  },
+  fieldsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.6rem',
+  },
+  fieldListItem: {
+    fontSize: '0.85rem',
+    color: theme.colors.text,
+    opacity: 0.8,
+    paddingLeft: '0.8rem',
+    borderLeft: `2px solid ${theme.colors.border}`,
+    fontWeight: '500',
   },
   cardFields: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem',
-  },
-  fieldGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  },
-  fieldLabel: {
-    fontSize: '0.85rem',
-    fontWeight: '500',
-    color: theme.colors.text,
-    opacity: 0.9,
-  },
-  fieldInput: {
-    padding: '0.6rem 0.8rem',
-    background: 'rgba(0, 0, 0, 0.3)',
-    border: `1px solid ${theme.colors.border}`,
-    borderRadius: '0.4rem',
-    color: theme.colors.text,
-    fontSize: '0.9rem',
-    transition: 'all 0.3s ease',
-    outline: 'none',
-  },
-  saveButton: {
-    marginTop: '1rem',
-    background: theme.colors.accent,
-    border: 'none',
-    color: '#0f0a1a',
-    padding: '0.6rem 1rem',
-    fontSize: '0.9rem',
-    borderRadius: '0.4rem',
-    cursor: 'pointer',
-    fontWeight: '600',
-    transition: 'all 0.3s ease',
+    gap: '0.8rem',
   },
 };
 
