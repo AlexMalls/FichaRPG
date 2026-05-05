@@ -33,20 +33,7 @@ const EnnoisSite = () => {
         transition: 'opacity 1s ease-out'
       }}>
         <div style={styles.welcomeLogo}>
-          <svg width="120" height="120" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="100" cy="100" r="90" fill="none" stroke="url(#grad)" strokeWidth="18" />
-            <circle cx="100" cy="80" r="12" fill="#E8D5F0" />
-            <path d="M 100 110 Q 110 130 100 150" fill="none" stroke="url(#grad)" strokeWidth="16" strokeLinecap="round" />
-            <circle cx="130" cy="140" r="6" fill="#C4A7D6" opacity="0.7" />
-            <circle cx="138" cy="155" r="6" fill="#A89BC4" opacity="0.6" />
-            <circle cx="146" cy="170" r="6" fill="#8C7FB2" opacity="0.5" />
-            <defs>
-              <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style={{ stopColor: '#E8D5F0', stopOpacity: 1 }} />
-                <stop offset="100%" style={{ stopColor: '#6B5B95', stopOpacity: 1 }} />
-              </linearGradient>
-            </defs>
-          </svg>
+          <img src="/images/logo.png" width="120" height="120" alt="Ennoia" />
         </div>
       </div>
 
@@ -151,20 +138,7 @@ const EnnoisSite = () => {
             {currentPage === 'creditos' && (
               <div style={styles.page}>
                 <div style={styles.creditsContainer}>
-                  <svg width="80" height="80" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style={styles.creditsLogo}>
-                    <circle cx="100" cy="100" r="90" fill="none" stroke="url(#grad)" strokeWidth="18" />
-                    <circle cx="100" cy="80" r="12" fill="#E8D5F0" />
-                    <path d="M 100 110 Q 110 130 100 150" fill="none" stroke="url(#grad)" strokeWidth="16" strokeLinecap="round" />
-                    <circle cx="130" cy="140" r="6" fill="#C4A7D6" opacity="0.7" />
-                    <circle cx="138" cy="155" r="6" fill="#A89BC4" opacity="0.6" />
-                    <circle cx="146" cy="170" r="6" fill="#8C7FB2" opacity="0.5" />
-                    <defs>
-                      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style={{ stopColor: '#E8D5F0', stopOpacity: 1 }} />
-                        <stop offset="100%" style={{ stopColor: '#6B5B95', stopOpacity: 1 }} />
-                      </linearGradient>
-                    </defs>
-                  </svg>
+                  <img src="/images/logo.png" width="80" height="80" alt="Ennoia" style={styles.creditsLogo} />
                   <p style={styles.creditsText}>Site desenvolvido por Ennoia</p>
                 </div>
               </div>
