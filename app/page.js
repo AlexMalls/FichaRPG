@@ -2,6 +2,62 @@
 
 import React, { useState, useEffect } from 'react';
 
+// ============ TEMA CENTRALIZADO ============
+const theme = {
+  colors: {
+    bg: 'linear-gradient(135deg, #0f0a1a 0%, #1a0f2e 100%)',
+    text: '#E8D5F0',
+    accent: 'linear-gradient(135deg, #E8D5F0 0%, #6B5B95 100%)',
+    border: 'rgba(232, 213, 240, 0.3)',
+    borderLight: 'rgba(232, 213, 240, 0.1)',
+    bgDark: 'rgba(232, 213, 240, 0.05)',
+  }
+};
+
+// ============ COMPONENTES REUTILIZÁVEIS ============
+
+// Box base para formulários
+const FormBox = ({ children }) => (
+  <div style={styles.formBox}>
+    {children}
+  </div>
+);
+
+// Input customizado
+const Input = ({ label, ...props }) => (
+  <div style={styles.inputGroup}>
+    {label && <label style={styles.label}>{label}</label>}
+    <input style={styles.input} {...props} />
+  </div>
+);
+
+// Select customizado
+const Select = ({ label, options, ...props }) => (
+  <div style={styles.inputGroup}>
+    {label && <label style={styles.label}>{label}</label>}
+    <div style={styles.selectWrapper}>
+      <select style={styles.select} {...props}>
+        <option value="">Selecione um modelo</option>
+        {options.map(opt => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+      <span style={styles.selectArrow}>▼</span>
+    </div>
+  </div>
+);
+
+// Botão primário
+const ButtonPrimary = ({ children, ...props }) => (
+  <button style={styles.buttonPrimary} {...props}>{children}</button>
+);
+
+// Botão secundário
+const ButtonSecondary = ({ children, ...props }) => (
+  <button style={styles.buttonSecondary} {...props}>{children}</button>
+);
+
+// ============ COMPONENTE PRINCIPAL ============
 const EnnoisSite = () => {
   const [showWelcome, setShowWelcome] = useState(true);
   const [currentPage, setCurrentPage] = useState('fichas');
@@ -46,7 +102,7 @@ const EnnoisSite = () => {
             <button 
               style={{
                 ...styles.navButton,
-                borderBottom: currentPage === 'fichas' ? '2px solid #E8D5F0' : 'none'
+                borderBottom: currentPage === 'fichas' ? `2px solid ${theme.colors.text}` : 'none'
               }}
               onClick={() => setCurrentPage('fichas')}
             >
@@ -55,7 +111,7 @@ const EnnoisSite = () => {
             <button 
               style={{
                 ...styles.navButton,
-                borderBottom: currentPage === 'opcoes' ? '2px solid #E8D5F0' : 'none'
+                borderBottom: currentPage === 'opcoes' ? `2px solid ${theme.colors.text}` : 'none'
               }}
               onClick={() => setCurrentPage('opcoes')}
             >
@@ -64,7 +120,7 @@ const EnnoisSite = () => {
             <button 
               style={{
                 ...styles.navButton,
-                borderBottom: currentPage === 'creditos' ? '2px solid #E8D5F0' : 'none'
+                borderBottom: currentPage === 'creditos' ? `2px solid ${theme.colors.text}` : 'none'
               }}
               onClick={() => setCurrentPage('creditos')}
             >
@@ -78,12 +134,9 @@ const EnnoisSite = () => {
               <div style={styles.page}>
                 {fichas.length === 0 && !showNewFichaForm ? (
                   <div style={styles.empty}>
-                    <button 
-                      style={styles.newFichaButton}
-                      onClick={() => setShowNewFichaForm(true)}
-                    >
+                    <ButtonPrimary onClick={() => setShowNewFichaForm(true)}>
                       + Nova Ficha
-                    </button>
+                    </ButtonPrimary>
                   </div>
                 ) : (
                   <>
@@ -96,47 +149,41 @@ const EnnoisSite = () => {
                       ))}
                     </div>
                     {!showNewFichaForm && (
-                      <button 
-                        style={styles.newFichaButton}
-                        onClick={() => setShowNewFichaForm(true)}
-                      >
+                      <ButtonPrimary onClick={() => setShowNewFichaForm(true)}>
                         + Nova Ficha
-                      </button>
+                      </ButtonPrimary>
                     )}
                   </>
                 )}
                 
                 {showNewFichaForm && (
-                  <form onSubmit={handleNewFicha} style={styles.form}>
-                    <div>
-                      <label style={styles.label}>Nome do Personagem:</label>
-                      <input
+                  <FormBox>
+                    <form onSubmit={handleNewFicha} style={styles.form}>
+                      <Input
                         type="text"
                         name="nome"
+                        label="Nome do Personagem:"
                         placeholder="Digite o nome"
-                        style={styles.input}
                         required
                         autoFocus
                       />
-                    </div>
-                    <div>
-                      <label style={styles.label}>Modelo de Ficha:</label>
-                      <select name="modelo" style={styles.select} required>
-                        <option value="">Selecione um modelo</option>
-                        <option value="D&D 5e">D&D 5e</option>
-                      </select>
-                    </div>
-                    <div style={styles.formButtons}>
-                      <button type="submit" style={styles.submitButton}>Criar</button>
-                      <button 
-                        type="button" 
-                        style={styles.cancelButton}
-                        onClick={() => setShowNewFichaForm(false)}
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </form>
+                      <Select
+                        name="modelo"
+                        label="Modelo de Ficha:"
+                        options={['D&D 5e']}
+                        required
+                      />
+                      <div style={styles.formButtons}>
+                        <ButtonPrimary type="submit">Criar</ButtonPrimary>
+                        <ButtonSecondary 
+                          type="button"
+                          onClick={() => setShowNewFichaForm(false)}
+                        >
+                          Cancelar
+                        </ButtonSecondary>
+                      </div>
+                    </form>
+                  </FormBox>
                 )}
               </div>
             )}
@@ -162,12 +209,13 @@ const EnnoisSite = () => {
   );
 };
 
+// ============ ESTILOS ============
 const styles = {
   container: {
     width: '100vw',
     height: '100vh',
-    background: 'linear-gradient(135deg, #0f0a1a 0%, #1a0f2e 100%)',
-    color: '#E8D5F0',
+    background: theme.colors.bg,
+    color: theme.colors.text,
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
     margin: 0,
     padding: 0,
@@ -182,7 +230,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #0f0a1a 0%, #1a0f2e 100%)',
+    background: theme.colors.bg,
     zIndex: 1000,
   },
   welcomeLogo: {
@@ -195,12 +243,12 @@ const styles = {
     justifyContent: 'center',
     gap: '3rem',
     padding: '2rem 1rem',
-    borderBottom: '1px solid rgba(232, 213, 240, 0.1)',
+    borderBottom: `1px solid ${theme.colors.borderLight}`,
   },
   navButton: {
     background: 'none',
     border: 'none',
-    color: '#E8D5F0',
+    color: theme.colors.text,
     fontSize: '1rem',
     cursor: 'pointer',
     padding: '0.5rem 0',
@@ -222,8 +270,67 @@ const styles = {
     justifyContent: 'center',
     height: '300px',
   },
-  newFichaButton: {
-    background: 'linear-gradient(135deg, #E8D5F0 0%, #6B5B95 100%)',
+
+  // ============ COMPONENTES REUTILIZÁVEIS ============
+  formBox: {
+    background: theme.colors.bgDark,
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: '0.75rem',
+    padding: '2rem',
+    backdropFilter: 'blur(10px)',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.5rem',
+  },
+  inputGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+  },
+  label: {
+    fontSize: '0.95rem',
+    fontWeight: '500',
+    color: theme.colors.text,
+  },
+  input: {
+    padding: '0.75rem 1rem',
+    background: 'rgba(0, 0, 0, 0.3)',
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: '0.5rem',
+    color: theme.colors.text,
+    fontSize: '1rem',
+    transition: 'all 0.3s ease',
+    outline: 'none',
+  },
+  selectWrapper: {
+    position: 'relative',
+  },
+  select: {
+    width: '100%',
+    padding: '0.75rem 1rem',
+    background: 'rgba(0, 0, 0, 0.3)',
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: '0.5rem',
+    color: theme.colors.text,
+    fontSize: '1rem',
+    cursor: 'pointer',
+    appearance: 'none',
+    transition: 'all 0.3s ease',
+    outline: 'none',
+  },
+  selectArrow: {
+    position: 'absolute',
+    right: '1rem',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none',
+    color: theme.colors.text,
+    fontSize: '0.75rem',
+  },
+  buttonPrimary: {
+    background: theme.colors.accent,
     border: 'none',
     color: '#0f0a1a',
     padding: '0.75rem 1.5rem',
@@ -231,68 +338,34 @@ const styles = {
     borderRadius: '0.5rem',
     cursor: 'pointer',
     fontWeight: '600',
-    transition: 'transform 0.3s ease, opacity 0.3s ease',
+    transition: 'transform 0.2s ease, opacity 0.2s ease',
   },
-  fichasList: {
-    marginBottom: '2rem',
-  },
-  fichaItem: {
-    padding: '1rem',
-    background: 'rgba(232, 213, 240, 0.05)',
-    border: '1px solid rgba(232, 213, 240, 0.2)',
-    borderRadius: '0.5rem',
-    marginBottom: '1rem',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-  },
-  input: {
-    padding: '0.75rem',
-    background: 'rgba(232, 213, 240, 0.05)',
-    border: '1px solid rgba(232, 213, 240, 0.3)',
-    borderRadius: '0.5rem',
-    color: '#E8D5F0',
+  buttonSecondary: {
+    background: theme.colors.bgDark,
+    border: `1px solid ${theme.colors.border}`,
+    color: theme.colors.text,
+    padding: '0.75rem 1.5rem',
     fontSize: '1rem',
-  },
-  label: {
-    display: 'block',
-    marginBottom: '0.5rem',
-    fontSize: '0.9rem',
-    fontWeight: '500',
-  },
-  select: {
-    width: '100%',
-    padding: '0.75rem',
-    background: 'rgba(232, 213, 240, 0.05)',
-    border: '1px solid rgba(232, 213, 240, 0.3)',
     borderRadius: '0.5rem',
-    color: '#E8D5F0',
-    fontSize: '1rem',
+    cursor: 'pointer',
+    fontWeight: '600',
+    transition: 'all 0.2s ease',
   },
   formButtons: {
     display: 'flex',
     gap: '1rem',
   },
-  submitButton: {
-    flex: 1,
-    padding: '0.75rem',
-    background: 'linear-gradient(135deg, #E8D5F0 0%, #6B5B95 100%)',
-    border: 'none',
-    color: '#0f0a1a',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontWeight: '600',
+
+  // ============ OUTROS ELEMENTOS ============
+  fichasList: {
+    marginBottom: '2rem',
   },
-  cancelButton: {
-    flex: 1,
-    padding: '0.75rem',
-    background: 'rgba(232, 213, 240, 0.1)',
-    border: '1px solid rgba(232, 213, 240, 0.3)',
-    color: '#E8D5F0',
+  fichaItem: {
+    padding: '1rem',
+    background: theme.colors.bgDark,
+    border: `1px solid ${theme.colors.border}`,
     borderRadius: '0.5rem',
-    cursor: 'pointer',
+    marginBottom: '1rem',
   },
   text: {
     fontSize: '1.1rem',
