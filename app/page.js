@@ -314,4 +314,4 @@ const styles = {
   },
 };
 
-EnnoisSite;
+export default EnnoisSite;
