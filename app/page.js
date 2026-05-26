@@ -184,6 +184,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
   const [isResizing, setIsResizing]         = useState(false);
   const [resizePreview, setResizePreview]   = useState(null); // { cols, rows } durante resize
+  const [ghostSize, setGhostSize]           = useState({ w: 180, h: 100 });
 
   const isDraggingRef = React.useRef(false);
   const isResizingRef = React.useRef(false);
@@ -263,7 +264,18 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleCardMouseDown = (e) => {
     e.preventDefault();
-    setDragOffset({ x: 90, y: 20 });
+    // Calcula dimensões reais do card para centralizar o fantasma corretamente
+    if (gridRef.current) {
+      const gridRect = gridRef.current.getBoundingClientRect();
+      const cellW = (gridRect.width - 32) / GRID_COLS;
+      const ghostW = cellW * cardSize.cols + GAP * (cardSize.cols - 1);
+      const ghostH = CELL_H * cardSize.rows + GAP * (cardSize.rows - 1);
+      setDragOffset({ x: ghostW / 2, y: ghostH / 2 });
+      setGhostSize({ w: ghostW, h: ghostH });
+    } else {
+      setDragOffset({ x: 90, y: 20 });
+      setGhostSize({ w: 180, h: 100 });
+    }
     setMousePos({ x: e.clientX, y: e.clientY });
     setIsDraggingCard(true);
     isDraggingRef.current = true;
@@ -410,7 +422,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 position: 'fixed',
                 left: `${mousePos.x - dragOffset.x}px`,
                 top:  `${mousePos.y - dragOffset.y}px`,
-                width: '180px',
+                width:  `${ghostSize.w}px`,
+                height: `${ghostSize.h}px`,
                 pointerEvents: 'none',
                 zIndex: 9999,
                 opacity: 0.6,
@@ -1254,3 +1267,4 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
+
