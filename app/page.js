@@ -18,9 +18,9 @@ import { db } from '../firebase';
 // ============================================================
 const GRID_CONFIG = {
   colunas:       6,    // número de colunas
-  linhas:        10,    // número de linhas
-  alturaCell:    80,  // altura de cada célula em px
-  gap:           8,   // espaçamento entre células em px
+  linhas:        11,   // número de linhas
+  alturaCell:    80,   // altura de cada célula em px
+  gap:           8,    // espaçamento entre células em px
   paddingGrid:   16,   // padding interno do grid em px
 };
 // ── aliases internos (não mexa) ──────────────────────────────
@@ -387,6 +387,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               <p style={{ margin: 0 }}>Arraste para o grid e redimensione pelo canto ↘</p>
             </div>
 
+            {/* Card no sidebar — só aparece se ainda não foi colocado no grid */}
+            {!cardMovelPos && (
             <div
               onMouseDown={handleCardMouseDown}
               style={{
@@ -401,6 +403,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
               </div>
             </div>
+            )}
           </div>
         </aside>
 
@@ -463,6 +466,39 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 <div style={styles.cardMovelHeader}>
                   <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
                 </div>
+
+                {/* Botão X — remove o card do grid e devolve ao sidebar */}
+                <button
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={() => setCardMovelPos(null)}
+                  title="Remover do grid"
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    border: 'none',
+                    background: 'rgba(248, 113, 113, 0.25)',
+                    color: '#f87171',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    lineHeight: 1,
+                    opacity: 0.7,
+                    transition: 'opacity 0.2s, background 0.2s',
+                    zIndex: 10,
+                    padding: 0,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = 1; e.currentTarget.style.background = 'rgba(248, 113, 113, 0.5)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = 0.7; e.currentTarget.style.background = 'rgba(248, 113, 113, 0.25)'; }}
+                >
+                  ✕
+                </button>
 
                 {/* Handle de resize — canto inferior direito */}
                 <div
