@@ -849,7 +849,7 @@ const styles = {
     gridTemplateColumns: 'repeat(6, 1fr)',
     gap: '0.8rem',
     width: '100%',
-    padding: '1rem',
+    padding: '0.5rem',
   },
   spaceCard: {
     aspectRatio: '1',
