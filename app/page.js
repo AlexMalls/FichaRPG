@@ -195,8 +195,24 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [isResizing, setIsResizing]         = useState(false);
   const [resizePreview, setResizePreview]   = useState(null);
   const [ghostSize, setGhostSize]           = useState({ w: 180, h: 100 });
-  // FIX 2: estado para a célula sob o cursor durante o drag
   const [hoverCell, setHoverCell]           = useState(null);
+
+  // Campos editáveis da ficha — inicializados com os dados vindos do Firestore
+  const [fichaData, setFichaData] = useState({
+    nome:         ficha?.nome         || '',
+    classe:       ficha?.classe       || '',
+    nivel:        ficha?.nivel        || '',
+    raca:         ficha?.raca         || '',
+    antecedente:  ficha?.antecedente  || '',
+    alinhamento:  ficha?.alinhamento  || '',
+    xp:           ficha?.xp           || '',
+  });
+
+  const handleFieldChange = (campo, valor) => {
+    setFichaData(prev => ({ ...prev, [campo]: valor }));
+  };
+
+
 
   const isDraggingRef  = React.useRef(false);
   const isResizingRef  = React.useRef(false);
@@ -459,12 +475,41 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   cursor: isDraggingCard ? 'grabbing' : 'grab',
                   opacity: isDraggingCard ? 0.6 : 1,
                   transition: 'opacity 0.15s ease, grid-column 0.1s ease, grid-row 0.1s ease',
-                  overflow: 'visible',
+                  overflow: 'hidden',
                   zIndex: 2,
+                  flexDirection: 'column',
+                  display: 'flex',
                 }}
               >
                 <div style={styles.cardMovelHeader}>
                   <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
+                </div>
+
+                {/* Campos editáveis — cada atributo da ficha é uma box preenchível */}
+                <div
+                  onMouseDown={e => e.stopPropagation()}
+                  style={styles.cardFieldsGrid}
+                >
+                  {[
+                    { campo: 'nome',        label: 'Nome'        },
+                    { campo: 'classe',      label: 'Classe'      },
+                    { campo: 'nivel',       label: 'Nível'       },
+                    { campo: 'raca',        label: 'Raça'        },
+                    { campo: 'antecedente', label: 'Antecedente' },
+                    { campo: 'alinhamento', label: 'Alinhamento' },
+                    { campo: 'xp',          label: 'XP'          },
+                  ].map(({ campo, label }) => (
+                    <div key={campo} style={styles.cardFieldBox}>
+                      <span style={styles.cardFieldLabel}>{label}</span>
+                      <input
+                        className="card-field-input"
+                        style={styles.cardFieldInput}
+                        value={fichaData[campo]}
+                        onChange={e => handleFieldChange(campo, e.target.value)}
+                        placeholder="—"
+                      />
+                    </div>
+                  ))}
                 </div>
 
                 {/* Botão X — remove o card do grid e devolve ao sidebar */}
@@ -1253,6 +1298,41 @@ const styles = {
     whiteSpace: 'nowrap',
   },
 
+  // ── Campos editáveis dentro do card ──
+  cardFieldsGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '6px',
+    padding: '6px 4px 4px 4px',
+    overflow: 'auto',
+    flex: 1,
+  },
+  cardFieldBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  cardFieldLabel: {
+    fontSize: '0.6rem',
+    fontWeight: '700',
+    color: 'rgba(232, 213, 240, 0.5)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    paddingLeft: '4px',
+  },
+  cardFieldInput: {
+    background: 'rgba(0, 0, 0, 0.3)',
+    border: '1px solid rgba(232, 213, 240, 0.15)',
+    borderRadius: '4px',
+    color: '#E8D5F0',
+    fontSize: '0.72rem',
+    padding: '3px 6px',
+    outline: 'none',
+    width: '100%',
+    boxSizing: 'border-box',
+    transition: 'border-color 0.2s',
+  },
+
   // ============ CARD EXPANDÍVEL ============
   card: {
     background: theme.colors.bgDark,
@@ -1367,6 +1447,11 @@ const globalStyles = `
   body.is-resizing,
   body.is-resizing * {
     cursor: nwse-resize !important;
+  }
+
+  .card-field-input:focus {
+    border-color: rgba(232, 213, 240, 0.5) !important;
+    background: rgba(0, 0, 0, 0.5) !important;
   }
 `;
 
