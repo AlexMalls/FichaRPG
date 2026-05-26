@@ -18,9 +18,9 @@ import { db } from '../firebase';
 // ============================================================
 const GRID_CONFIG = {
   colunas:       6,    // número de colunas
-  linhas:        7,    // número de linhas
-  alturaCell:    100,  // altura de cada célula em px
-  gap:           12,   // espaçamento entre células em px
+  linhas:        10,    // número de linhas
+  alturaCell:    80,  // altura de cada célula em px
+  gap:           8,   // espaçamento entre células em px
   paddingGrid:   16,   // padding interno do grid em px
 };
 // ── aliases internos (não mexa) ──────────────────────────────
