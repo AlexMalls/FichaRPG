@@ -13,6 +13,24 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
+// ============================================================
+// ⚙️  CONFIGURAÇÃO DO GRID — mexa aqui à vontade
+// ============================================================
+const GRID_CONFIG = {
+  colunas:       6,    // número de colunas
+  linhas:        7,    // número de linhas
+  alturaCell:    100,  // altura de cada célula em px
+  gap:           12,   // espaçamento entre células em px
+  paddingGrid:   16,   // padding interno do grid em px
+};
+// ── aliases internos (não mexa) ──────────────────────────────
+const GRID_COLS    = GRID_CONFIG.colunas;
+const GRID_ROWS    = GRID_CONFIG.linhas;
+const CELL_H       = GRID_CONFIG.alturaCell;
+const GAP          = GRID_CONFIG.gap;
+const GRID_PADDING = GRID_CONFIG.paddingGrid;
+// ============================================================
+
 // ============ TEMA CENTRALIZADO ============
 const theme = {
   colors: {
@@ -167,11 +185,6 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 );
 
 // ============ PÁGINA DE VISUALIZAÇÃO DA FICHA ============
-const GRID_COLS = 6;
-const GRID_ROWS = 7;
-const CELL_H = 100;   // gridTemplateRows: repeat(7, 100px)
-const GAP = 12.8;     // 0.8rem ≈ 12.8px
-const GRID_PADDING = 16; // 1rem padding do gridContainer
 
 const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [cardMovelPos, setCardMovelPos]     = useState(null);
@@ -1128,15 +1141,15 @@ const styles = {
   // ============ GRID DE ESPAÇOS ============
   gridContainer: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(6, 1fr)',
-    gridTemplateRows: 'repeat(7, 100px)',
-    gap: '0.8rem',
+    gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)`,
+    gridTemplateRows: `repeat(${GRID_ROWS}, ${CELL_H}px)`,
+    gap: `${GAP}px`,
     width: '100%',
-    padding: '1rem',
+    padding: `${GRID_PADDING}px`,
     position: 'relative',
   },
   spaceCard: {
-    height: '100px',
+    height: `${CELL_H}px`,
     background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.075) 0%, rgba(107, 91, 149, 0.075) 100%)',
     border: `2px solid rgba(232, 213, 240, 0.2)`,
     borderRadius: '0.75rem',
@@ -1328,3 +1341,4 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
+
