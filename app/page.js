@@ -832,7 +832,7 @@ const styles = {
   mainArea: {
     flex: 1,
     overflow: 'auto',
-    padding: '1rem',
+    padding: '2rem',
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'flex-start',
@@ -847,12 +847,12 @@ const styles = {
   gridContainer: {
     display: 'grid',
     gridTemplateColumns: 'repeat(6, 1fr)',
-    gap: '0.8rem',
+    gap: '1.2rem',
     width: '100%',
-    padding: '0.5rem',
+    padding: '1rem',
   },
   spaceCard: {
-    height: '100px'  // Altura fixa,
+    height: '100px',
     background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.15) 0%, rgba(107, 91, 149, 0.15) 100%)',
     border: `2px solid rgba(232, 213, 240, 0.4)`,
     borderRadius: '0.75rem',
@@ -986,3 +986,4 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
+
