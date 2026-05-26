@@ -170,48 +170,85 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 );
 
 // ============ PÁGINA DE VISUALIZAÇÃO DA FICHA ============
-const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [cardMovelPos, setCardMovelPos] = useState(null);
-  const [isDraggingCard, setIsDraggingCard] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const isDraggingRef = React.useRef(false);
+// Constantes do grid — devem bater com os estilos de gridContainer
+const GRID_COLS = 6;
+const GRID_ROWS = 7;
+const CELL_H = 100;   // gridTemplateRows: repeat(7, 100px)
+const GAP = 12.8;     // 0.8rem ≈ 12.8px
 
-  // Define os espaços do grid com posição específica (coluna, linha)
+const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
+  const [cardMovelPos, setCardMovelPos]     = useState(null);          // { col, row }
+  const [cardSize, setCardSize]             = useState({ cols: 1, rows: 1 }); // span
+  const [isDraggingCard, setIsDraggingCard] = useState(false);
+  const [dragOffset, setDragOffset]         = useState({ x: 0, y: 0 });
+  const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
+  const [isResizing, setIsResizing]         = useState(false);
+  const [resizePreview, setResizePreview]   = useState(null); // { cols, rows } durante resize
+
+  const isDraggingRef = React.useRef(false);
+  const isResizingRef = React.useRef(false);
+  const gridRef       = React.useRef(null);
+  const resizeOrigin  = React.useRef({ col: 1, row: 1 }); // col/row onde o card começa
+
+  // Espaços do grid
   const espacos = [];
   let id = 1;
-  for (let row = 1; row <= 7; row++) {
-    for (let col = 1; col <= 6; col++) {
-      espacos.push({ id: id, col: col, row: row });
-      id++;
+  for (let row = 1; row <= GRID_ROWS; row++) {
+    for (let col = 1; col <= GRID_COLS; col++) {
+      espacos.push({ id: id++, col, row });
     }
   }
 
-  // Registra mousemove e mouseup no window para capturar fora do elemento
+  // Dado um ponto (clientX, clientY), devolve { col, row } da célula do grid sob o cursor
+  const getCellFromPoint = (x, y) => {
+    if (!gridRef.current) return null;
+    const rect = gridRef.current.getBoundingClientRect();
+    const relX = x - rect.left - 16; // 1rem padding do gridContainer
+    const relY = y - rect.top  - 16;
+    if (relX < 0 || relY < 0) return null;
+    const cellW = (rect.width - 32) / GRID_COLS; // descontando padding dos dois lados
+    const col = Math.floor(relX / cellW) + 1;
+    const row = Math.floor(relY / (CELL_H + GAP)) + 1;
+    if (col < 1 || col > GRID_COLS || row < 1 || row > GRID_ROWS) return null;
+    return { col, row };
+  };
+
+  // ── Listeners globais de mouse ──────────────────────────────────────────────
   useEffect(() => {
     const onMouseMove = (e) => {
-      if (!isDraggingRef.current) return;
-      setMousePos({ x: e.clientX, y: e.clientY });
+      if (isDraggingRef.current) {
+        setMousePos({ x: e.clientX, y: e.clientY });
+      }
+      if (isResizingRef.current) {
+        const cell = getCellFromPoint(e.clientX, e.clientY);
+        if (cell) {
+          const origin = resizeOrigin.current;
+          const cols = Math.max(1, Math.min(cell.col - origin.col + 1, GRID_COLS - origin.col + 1));
+          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, GRID_ROWS - origin.row + 1));
+          setResizePreview({ cols, rows });
+        }
+      }
     };
 
     const onMouseUp = (e) => {
-      if (!isDraggingRef.current) return;
-      isDraggingRef.current = false;
-      setIsDraggingCard(false);
-      setMousePos({ x: 0, y: 0 });
-      setDragOffset({ x: 0, y: 0 });
-
-      // Fix 2: remove cursor grabbing global
-      document.body.classList.remove('is-dragging');
-
-      // Descobre em qual célula do grid o mouse soltou
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      const cell = el?.closest('[data-grid-cell]');
-      if (cell) {
-        const col = parseInt(cell.dataset.col);
-        const row = parseInt(cell.dataset.row);
-        setCardMovelPos({ col, row });
+      // ── Soltou resize ──
+      if (isResizingRef.current) {
+        isResizingRef.current = false;
+        setIsResizing(false);
+        document.body.classList.remove('is-resizing');
+        if (resizePreview) setCardSize(resizePreview);
+        setResizePreview(null);
+        return;
+      }
+      // ── Soltou drag ──
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        setIsDraggingCard(false);
+        setMousePos({ x: 0, y: 0 });
+        setDragOffset({ x: 0, y: 0 });
+        document.body.classList.remove('is-dragging');
+        const cell = getCellFromPoint(e.clientX, e.clientY);
+        if (cell) setCardMovelPos(cell);
       }
     };
 
@@ -221,40 +258,60 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, []);
+  }, [resizePreview]); // resizePreview como dep para ter o valor atual no mouseup
 
-  const handleMouseDown = (e) => {
+  // ── Handlers ────────────────────────────────────────────────────────────────
+  const handleCardMouseDown = (e) => {
     e.preventDefault();
-    // Fix 1: sempre centraliza o card fantasma no mouse (width 180px / 2 = 90, altura ~20)
     setDragOffset({ x: 90, y: 20 });
     setMousePos({ x: e.clientX, y: e.clientY });
     setIsDraggingCard(true);
     isDraggingRef.current = true;
-    // Fix 2: força cursor grabbing em toda a página enquanto arrasta
     document.body.classList.add('is-dragging');
+  };
+
+  const handleResizeMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // não dispara drag
+    if (!cardMovelPos) return;
+    resizeOrigin.current = { col: cardMovelPos.col, row: cardMovelPos.row };
+    setResizePreview({ ...cardSize });
+    setIsResizing(true);
+    isResizingRef.current = true;
+    document.body.classList.add('is-resizing');
+  };
+
+  // Tamanho atual (ou preview enquanto redimensiona)
+  const activeSize = isResizing && resizePreview ? resizePreview : cardSize;
+
+  // Células que o card ocupa atualmente (para esconder os placeholders)
+  const cardOccupies = (col, row) => {
+    if (!cardMovelPos) return false;
+    return (
+      col >= cardMovelPos.col &&
+      col < cardMovelPos.col + activeSize.cols &&
+      row >= cardMovelPos.row &&
+      row < cardMovelPos.row + activeSize.rows
+    );
   };
 
   return (
     <div style={{ ...styles.detailContainer, userSelect: 'none' }}>
       <div style={styles.detailContent}>
-        {/* Menu Lateral */}
+
+        {/* ── Sidebar ── */}
         <aside style={styles.sidebar}>
           <div style={styles.sidebarContent}>
-            <button
-              onClick={onBack}
-              style={styles.backButtonSidebar}
-              title="Voltar à lista"
-            >
-              ← Voltar
-            </button>
+            <button onClick={onBack} style={styles.backButtonSidebar}>← Voltar</button>
+
             <div style={{ fontSize: '0.85rem', color: theme.colors.text, opacity: 0.6, marginTop: '1rem', padding: '1rem', borderTop: `1px solid ${theme.colors.borderLight}` }}>
               <p style={{ margin: '0 0 0.5rem 0' }}>💡 Dica:</p>
-              <p style={{ margin: 0 }}>Arraste o card para o grid!</p>
+              <p style={{ margin: 0 }}>Arraste para o grid e redimensione pelo canto ↘</p>
             </div>
 
-            {/* CardMovel no Sidebar */}
+            {/* Card no sidebar */}
             <div
-              onMouseDown={handleMouseDown}
+              onMouseDown={handleCardMouseDown}
               style={{
                 ...styles.cardMovel,
                 marginTop: '1rem',
@@ -270,9 +327,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           </div>
         </aside>
 
-        {/* Área principal com grid de espaços */}
+        {/* ── Área principal ── */}
         <main style={styles.mainArea}>
-          <div style={styles.gridContainer}>
+          <div ref={gridRef} style={styles.gridContainer}>
+
+            {/* Placeholders */}
             {espacos.map((espaco) => (
               <div
                 key={espaco.id}
@@ -283,7 +342,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   ...styles.spaceCard,
                   gridColumn: espaco.col,
                   gridRow: espaco.row,
-                  opacity: cardMovelPos && cardMovelPos.col === espaco.col && cardMovelPos.row === espaco.row ? 0 : 0.5,
+                  opacity: cardOccupies(espaco.col, espaco.row) ? 0 : 0.5,
                 }}
               >
                 <div style={styles.spaceCardContent}>
@@ -292,34 +351,65 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               </div>
             ))}
 
-            {/* CardMovel no Grid - Apenas se posicionado */}
+            {/* Card posicionado no grid */}
             {cardMovelPos && (
               <div
-                onMouseDown={handleMouseDown}
+                onMouseDown={handleCardMouseDown}
                 style={{
                   ...styles.cardMovel,
-                  gridColumn: cardMovelPos.col,
-                  gridRow: cardMovelPos.row,
+                  gridColumn: `${cardMovelPos.col} / span ${activeSize.cols}`,
+                  gridRow:    `${cardMovelPos.row} / span ${activeSize.rows}`,
                   cursor: isDraggingCard ? 'grabbing' : 'grab',
                   opacity: isDraggingCard ? 0.6 : 1,
-                  transition: 'opacity 0.15s ease',
+                  transition: 'opacity 0.15s ease, grid-column 0.1s ease, grid-row 0.1s ease',
+                  overflow: 'visible',
+                  zIndex: 2,
                 }}
               >
                 <div style={styles.cardMovelHeader}>
                   <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
                 </div>
+
+                {/* Handle de resize — canto inferior direito */}
+                <div
+                  onMouseDown={handleResizeMouseDown}
+                  title="Redimensionar"
+                  style={{
+                    position: 'absolute',
+                    bottom: 4,
+                    right: 4,
+                    width: 18,
+                    height: 18,
+                    cursor: 'nwse-resize',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: isResizing ? 1 : 0.5,
+                    transition: 'opacity 0.2s',
+                    zIndex: 10,
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                  onMouseLeave={e => { if (!isResizing) e.currentTarget.style.opacity = 0.5; }}
+                >
+                  {/* Ícone de resize — três linhas diagonais */}
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <line x1="12" y1="4"  x2="4"  y2="12" stroke="#E8D5F0" strokeWidth="1.5" strokeLinecap="round"/>
+                    <line x1="12" y1="8"  x2="8"  y2="12" stroke="#E8D5F0" strokeWidth="1.5" strokeLinecap="round"/>
+                    <line x1="12" y1="12" x2="12" y2="12" stroke="#E8D5F0" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Card fantasma que segue o mouse em tempo real */}
+          {/* Card fantasma seguindo o mouse */}
           {isDraggingCard && (
             <div
               style={{
                 ...styles.cardMovel,
                 position: 'fixed',
                 left: `${mousePos.x - dragOffset.x}px`,
-                top: `${mousePos.y - dragOffset.y}px`,
+                top:  `${mousePos.y - dragOffset.y}px`,
                 width: '180px',
                 pointerEvents: 'none',
                 zIndex: 9999,
@@ -1149,6 +1239,11 @@ const globalStyles = `
   body.is-dragging,
   body.is-dragging * {
     cursor: grabbing !important;
+  }
+
+  body.is-resizing,
+  body.is-resizing * {
+    cursor: nwse-resize !important;
   }
 `;
 
