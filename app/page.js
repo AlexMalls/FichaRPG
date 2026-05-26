@@ -185,10 +185,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // FIX 2: estado para a célula sob o cursor durante o drag
   const [hoverCell, setHoverCell]           = useState(null);
 
-  const isDraggingRef = React.useRef(false);
-  const isResizingRef = React.useRef(false);
-  const gridRef       = React.useRef(null);
-  const resizeOrigin  = React.useRef({ col: 1, row: 1 });
+  const isDraggingRef  = React.useRef(false);
+  const isResizingRef  = React.useRef(false);
+  const gridRef        = React.useRef(null);
+  const resizeOrigin   = React.useRef({ col: 1, row: 1 });
+  // Refs para ter os valores de offset/size atuais dentro dos closures do useEffect
+  const dragOffsetRef  = React.useRef({ x: 0, y: 0 });
+  const ghostSizeRef   = React.useRef({ w: 180, h: 100 });
+  const cardSizeRef    = React.useRef({ cols: 1, rows: 1 });
 
   const espacos = [];
   let id = 1;
@@ -204,7 +208,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     const relX = x - rect.left - GRID_PADDING;
     const relY = y - rect.top  - GRID_PADDING;
     if (relX < 0 || relY < 0) return null;
-    // FIX 1: usa o mesmo cálculo de cellW que o ghost para consistência
     const availableWidth = rect.width - GRID_PADDING * 2;
     const cellW = (availableWidth - GAP * (GRID_COLS - 1)) / GRID_COLS;
     const col = Math.floor(relX / (cellW + GAP)) + 1;
@@ -213,12 +216,41 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     return { col, row };
   };
 
+  // Calcula a célula de origem (canto sup-esq) baseado no canto sup-esq do fantasma,
+  // que é o mouse menos o dragOffset. Clampeia para que o card caiba no grid.
+  const getOriginCellFromGhost = (mouseX, mouseY) => {
+    if (!gridRef.current) return null;
+    const rect = gridRef.current.getBoundingClientRect();
+    const offset = dragOffsetRef.current;
+    const size   = cardSizeRef.current;
+
+    // Canto superior esquerdo do ghost no espaço da página
+    const ghostLeft = mouseX - offset.x;
+    const ghostTop  = mouseY - offset.y;
+
+    // Converte para coordenadas relativas ao grid (descontando padding)
+    const relX = ghostLeft - rect.left - GRID_PADDING;
+    const relY = ghostTop  - rect.top  - GRID_PADDING;
+
+    const availableWidth = rect.width - GRID_PADDING * 2;
+    const cellW = (availableWidth - GAP * (GRID_COLS - 1)) / GRID_COLS;
+
+    let col = Math.round(relX / (cellW + GAP)) + 1;
+    let row = Math.round(relY / (CELL_H + GAP)) + 1;
+
+    // Clampeia para que o card inteiro caiba dentro do grid
+    col = Math.max(1, Math.min(col, GRID_COLS - size.cols + 1));
+    row = Math.max(1, Math.min(row, GRID_ROWS - size.rows + 1));
+
+    return { col, row };
+  };
+
   useEffect(() => {
     const onMouseMove = (e) => {
       if (isDraggingRef.current) {
         setMousePos({ x: e.clientX, y: e.clientY });
-        // FIX 2: atualiza a célula de hover durante o drag
-        const cell = getCellFromPoint(e.clientX, e.clientY);
+        // Usa o canto sup-esq do ghost para calcular a célula de origem
+        const cell = getOriginCellFromGhost(e.clientX, e.clientY);
         setHoverCell(cell);
       }
       if (isResizingRef.current) {
@@ -237,7 +269,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         isResizingRef.current = false;
         setIsResizing(false);
         document.body.classList.remove('is-resizing');
-        if (resizePreview) setCardSize(resizePreview);
+        if (resizePreview) {
+          setCardSize(resizePreview);
+          cardSizeRef.current = { ...resizePreview };
+        }
         setResizePreview(null);
         return;
       }
@@ -246,10 +281,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         setIsDraggingCard(false);
         setMousePos({ x: 0, y: 0 });
         setDragOffset({ x: 0, y: 0 });
-        // FIX 2: limpa o hoverCell ao soltar
         setHoverCell(null);
         document.body.classList.remove('is-dragging');
-        const cell = getCellFromPoint(e.clientX, e.clientY);
+        // Posiciona o card onde o ghost estava, não onde o mouse estava
+        const cell = getOriginCellFromGhost(e.clientX, e.clientY);
         if (cell) setCardMovelPos(cell);
       }
     };
@@ -262,22 +297,29 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     };
   }, [resizePreview]);
 
-  // FIX 1: cálculo correto do tamanho do ghost
+  // FIX: cálculo correto do tamanho do ghost + sync de refs para closures
   const handleCardMouseDown = (e) => {
     e.preventDefault();
     if (gridRef.current) {
       const gridRect = gridRef.current.getBoundingClientRect();
-      // desconta padding dos dois lados e os gaps entre colunas
       const availableWidth = gridRect.width - GRID_PADDING * 2;
       const cellW = (availableWidth - GAP * (GRID_COLS - 1)) / GRID_COLS;
       const ghostW = cellW * cardSize.cols + GAP * (cardSize.cols - 1);
       const ghostH = CELL_H * cardSize.rows + GAP * (cardSize.rows - 1);
-      setDragOffset({ x: ghostW / 2, y: ghostH / 2 });
+      const offset = { x: ghostW / 2, y: ghostH / 2 };
+      setDragOffset(offset);
       setGhostSize({ w: ghostW, h: ghostH });
+      // Sincroniza refs para os closures do useEffect terem os valores atuais
+      dragOffsetRef.current = offset;
+      ghostSizeRef.current  = { w: ghostW, h: ghostH };
     } else {
-      setDragOffset({ x: 90, y: 20 });
+      const offset = { x: 90, y: 20 };
+      setDragOffset(offset);
       setGhostSize({ w: 180, h: 100 });
+      dragOffsetRef.current = offset;
+      ghostSizeRef.current  = { w: 180, h: 100 };
     }
+    cardSizeRef.current = { ...cardSize };
     setMousePos({ x: e.clientX, y: e.clientY });
     setIsDraggingCard(true);
     isDraggingRef.current = true;
