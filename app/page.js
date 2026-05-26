@@ -852,7 +852,7 @@ const styles = {
     padding: '0.5rem',
   },
   spaceCard: {
-    aspectRatio: '1',
+    height: '100px'  // Altura fixa,
     background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.15) 0%, rgba(107, 91, 149, 0.15) 100%)',
     border: `2px solid rgba(232, 213, 240, 0.4)`,
     borderRadius: '0.75rem',
