@@ -832,7 +832,7 @@ const styles = {
   mainArea: {
     flex: 1,
     overflow: 'auto',
-    padding: '2rem',
+    padding: '1rem',
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'flex-start',
