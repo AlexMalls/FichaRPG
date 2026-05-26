@@ -847,7 +847,7 @@ const styles = {
   gridContainer: {
     display: 'grid',
     gridTemplateColumns: 'repeat(6, 1fr)',
-    gap: '1.2rem',
+    gap: '0.8rem',
     width: '100%',
     padding: '1rem',
   },
