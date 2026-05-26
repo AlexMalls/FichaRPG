@@ -485,10 +485,22 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
                 </div>
 
-                {/* Campos editáveis — cada atributo da ficha é uma box preenchível */}
+                {/* Campos editáveis — tamanho fixo, não redimensiona com o card */}
                 <div
                   onMouseDown={e => e.stopPropagation()}
-                  style={styles.cardFieldsGrid}
+                  style={{
+                    ...styles.cardFieldsGrid,
+                    // Largura fixa = 1 célula do grid (mesmo cálculo do ghost)
+                    // Altura fixa = suficiente para os 7 campos em 2 colunas
+                    width:     `calc((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS})`,
+                    minWidth:  `calc((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS})`,
+                    maxWidth:  `calc((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS})`,
+                    height:    `${CELL_H * 4 + GAP * 3}px`,
+                    minHeight: `${CELL_H * 4 + GAP * 3}px`,
+                    maxHeight: `${CELL_H * 4 + GAP * 3}px`,
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                  }}
                 >
                   {[
                     { campo: 'nome',        label: 'Nome'        },
@@ -1304,8 +1316,8 @@ const styles = {
     gridTemplateColumns: '1fr 1fr',
     gap: '6px',
     padding: '6px 4px 4px 4px',
-    overflow: 'auto',
-    flex: 1,
+    alignContent: 'start',
+    boxSizing: 'border-box',
   },
   cardFieldBox: {
     display: 'flex',
