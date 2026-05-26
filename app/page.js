@@ -208,7 +208,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         {/* Área principal com grid de espaços */}
         <main style={styles.mainArea}>
           <div style={styles.gridContainer}>
-            {Array.from({ length: 24 }).map((_, idx) => (
+            {Array.from({ length: 42 }).map((_, idx) => (
               <div 
                 key={idx}
                 style={styles.spaceCard}
@@ -847,7 +847,7 @@ const styles = {
   gridContainer: {
     display: 'grid',
     gridTemplateColumns: 'repeat(6, 1fr)',
-    gap: '1.2rem',
+    gap: '0.5rem',
     width: '100%',
     padding: '1rem',
   },
