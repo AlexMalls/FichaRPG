@@ -172,6 +172,8 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 // ============ PÁGINA DE VISUALIZAÇÃO DA FICHA ============
 const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [cardMovelPos, setCardMovelPos] = useState({ col: 1, row: 1 });
+  const [isDraggingCard, setIsDraggingCard] = useState(false);
 
   const camposBasicos = [
     'Nome',
@@ -198,6 +200,18 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     }
   }
 
+  const handleDragStart = (e) => {
+    setIsDraggingCard(true);
+  };
+
+  const handleDragEnd = (e) => {
+    setIsDraggingCard(false);
+  };
+
+  const handleDropOnGrid = (targetCol, targetRow) => {
+    setCardMovelPos({ col: targetCol, row: targetRow });
+  };
+
   return (
     <div style={styles.detailContainer}>
       <div style={styles.detailContent}>
@@ -211,12 +225,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             >
               ← Voltar
             </button>
-            <ExpandableCard
-              title="INFORMAÇÕES BÁSICAS"
-              fields={camposBasicos}
-              expanded={isExpanded}
-              onToggle={() => setIsExpanded(!isExpanded)}
-            />
+            <div style={{ fontSize: '0.85rem', color: theme.colors.text, opacity: 0.6, marginTop: '1rem', padding: '1rem', borderTop: `1px solid ${theme.colors.borderLight}` }}>
+              <p style={{ margin: '0 0 0.5rem 0' }}>💡 Dica:</p>
+              <p style={{ margin: 0 }}>Arraste o card das Informações Básicas no grid para posicioná-lo!</p>
+            </div>
           </div>
         </aside>
 
@@ -230,6 +242,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   ...styles.spaceCard,
                   gridColumn: espaco.col,
                   gridRow: espaco.row,
+                  opacity: cardMovelPos.col === espaco.col && cardMovelPos.row === espaco.row ? 0 : 0.5,
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleDropOnGrid(espaco.col, espaco.row);
                 }}
               >
                 <div style={styles.spaceCardContent}>
@@ -237,6 +255,30 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 </div>
               </div>
             ))}
+
+            {/* CardMovel - INFORMAÇÕES BÁSICAS */}
+            <div
+              draggable
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              style={{
+                ...styles.cardMovel,
+                gridColumn: cardMovelPos.col,
+                gridRow: cardMovelPos.row,
+                cursor: isDraggingCard ? 'grabbing' : 'grab',
+              }}
+            >
+              <div style={styles.cardMovelHeader}>
+                <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
+              </div>
+              <div style={styles.cardMovelContent}>
+                {camposBasicos.map((campo, idx) => (
+                  <div key={idx} style={styles.cardMovelField}>
+                    {campo}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </main>
       </div>
@@ -893,6 +935,53 @@ const styles = {
     color: '#E8D5F0',
     textAlign: 'center',
     pointerEvents: 'none',
+  },
+
+  // ============ CARD MÓVEL ============
+  cardMovel: {
+    background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.25) 0%, rgba(107, 91, 149, 0.25) 100%)',
+    border: `2px solid rgba(232, 213, 240, 0.6)`,
+    borderRadius: '0.75rem',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '0.75rem',
+    cursor: 'grab',
+    transition: 'all 0.3s ease',
+    position: 'relative',
+    overflow: 'hidden',
+    boxShadow: '0 4px 12px rgba(232, 213, 240, 0.15)',
+    userSelect: 'none',
+  },
+  cardMovelHeader: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: '0.5rem',
+    paddingBottom: '0.5rem',
+    borderBottom: `1px solid rgba(232, 213, 240, 0.3)`,
+  },
+  cardMovelTitle: {
+    margin: 0,
+    fontSize: '0.8rem',
+    fontWeight: '600',
+    color: '#E8D5F0',
+    textAlign: 'center',
+    letterSpacing: '0.5px',
+  },
+  cardMovelContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.3rem',
+    overflow: 'auto',
+    maxHeight: '100%',
+  },
+  cardMovelField: {
+    fontSize: '0.7rem',
+    color: '#E8D5F0',
+    opacity: 0.7,
+    paddingLeft: '0.4rem',
+    borderLeft: `1px solid rgba(232, 213, 240, 0.3)`,
+    whiteSpace: 'nowrap',
   },
 
   // ============ CARD EXPANDÍVEL ============
