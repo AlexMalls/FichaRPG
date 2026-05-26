@@ -205,10 +205,17 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           </div>
         </aside>
 
-        {/* Área principal (vazio por enquanto) */}
+        {/* Área principal com grid de espaços */}
         <main style={styles.mainArea}>
-          <div style={styles.emptyState}>
-            <p style={{ opacity: 0.6 }}>Selecione um card no menu lateral</p>
+          <div style={styles.gridContainer}>
+            {Array.from({ length: 24 }).map((_, idx) => (
+              <div 
+                key={idx}
+                style={styles.spaceCard}
+              >
+                <div style={styles.spaceCardContent}>1x1</div>
+              </div>
+            ))}
           </div>
         </main>
       </div>
@@ -827,13 +834,42 @@ const styles = {
     overflow: 'auto',
     padding: '2rem',
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
   },
   emptyState: {
     textAlign: 'center',
     color: theme.colors.text,
     opacity: 0.6,
+  },
+
+  // ============ GRID DE ESPAÇOS ============
+  gridContainer: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(6, 1fr)',
+    gap: '1.2rem',
+    width: '100%',
+    padding: '1rem',
+  },
+  spaceCard: {
+    aspectRatio: '1',
+    background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.15) 0%, rgba(107, 91, 149, 0.15) 100%)',
+    border: `2px solid rgba(232, 213, 240, 0.4)`,
+    borderRadius: '0.75rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  spaceCardContent: {
+    fontSize: '1.2rem',
+    fontWeight: '600',
+    color: '#E8D5F0',
+    textAlign: 'center',
+    pointerEvents: 'none',
   },
 
   // ============ CARD EXPANDÍVEL ============
