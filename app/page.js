@@ -176,83 +176,70 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [isDraggingCard, setIsDraggingCard] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-
-  const camposBasicos = [
-    'Nome',
-    'Classe',
-    'Nível',
-    'Raça',
-    'Antecedente',
-    'Alinhamento',
-    'Pontos de Experiência'
-  ];
+  const isDraggingRef = React.useRef(false);
 
   // Define os espaços do grid com posição específica (coluna, linha)
   const espacos = [];
   let id = 1;
   for (let row = 1; row <= 7; row++) {
     for (let col = 1; col <= 6; col++) {
-      espacos.push({
-        id: id,
-        col: col,
-        row: row,
-        size: '1x1'
-      });
+      espacos.push({ id: id, col: col, row: row });
       id++;
     }
   }
 
-  const handleDragStart = (e) => {
-    setIsDraggingCard(true);
-    
-    // Criar imagem transparente para eliminar fantasma padrão
-    const emptyImage = new Image();
-    e.dataTransfer.setDragImage(emptyImage, 0, 0);
-    
-    // Calcular offset entre o clique e a posição do elemento
-    const rect = e.currentTarget.getBoundingClientRect();
-    setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    });
-    
-    setMousePos({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleMouseMove = (e) => {
-    if (isDraggingCard) {
+  // Registra mousemove e mouseup no window para capturar fora do elemento
+  useEffect(() => {
+    const onMouseMove = (e) => {
+      if (!isDraggingRef.current) return;
       setMousePos({ x: e.clientX, y: e.clientY });
-    }
-  };
+    };
 
-  const handleDragEnd = (e) => {
-    setIsDraggingCard(false);
-    setMousePos({ x: 0, y: 0 });
-    setDragOffset({ x: 0, y: 0 });
-  };
+    const onMouseUp = (e) => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      setIsDraggingCard(false);
+      setMousePos({ x: 0, y: 0 });
+      setDragOffset({ x: 0, y: 0 });
 
-  const handleDropOnGrid = (targetCol, targetRow) => {
-    setCardMovelPos({ col: targetCol, row: targetRow });
-    setIsDraggingCard(false);
-    setMousePos({ x: 0, y: 0 });
+      // Descobre em qual célula do grid o mouse soltou
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const cell = el?.closest('[data-grid-cell]');
+      if (cell) {
+        const col = parseInt(cell.dataset.col);
+        const row = parseInt(cell.dataset.row);
+        setCardMovelPos({ col, row });
+      }
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offset = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+    setDragOffset(offset);
+    setMousePos({ x: e.clientX, y: e.clientY });
+    setIsDraggingCard(true);
+    isDraggingRef.current = true;
   };
 
   return (
-    <div 
-      style={styles.detailContainer}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => {
-        if (isDraggingCard) {
-          setIsDraggingCard(false);
-          setMousePos({ x: 0, y: 0 });
-        }
-      }}
-    >
+    <div style={{ ...styles.detailContainer, userSelect: 'none' }}>
       <div style={styles.detailContent}>
         {/* Menu Lateral */}
         <aside style={styles.sidebar}>
           <div style={styles.sidebarContent}>
-            <button 
+            <button
               onClick={onBack}
               style={styles.backButtonSidebar}
               title="Voltar à lista"
@@ -266,14 +253,13 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
             {/* CardMovel no Sidebar */}
             <div
-              draggable
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
+              onMouseDown={handleMouseDown}
               style={{
                 ...styles.cardMovel,
                 marginTop: '1rem',
                 cursor: isDraggingCard ? 'grabbing' : 'grab',
                 opacity: isDraggingCard ? 0.6 : 1,
+                transition: 'opacity 0.15s ease',
               }}
             >
               <div style={styles.cardMovelHeader}>
@@ -287,18 +273,16 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         <main style={styles.mainArea}>
           <div style={styles.gridContainer}>
             {espacos.map((espaco) => (
-              <div 
+              <div
                 key={espaco.id}
+                data-grid-cell
+                data-col={espaco.col}
+                data-row={espaco.row}
                 style={{
                   ...styles.spaceCard,
                   gridColumn: espaco.col,
                   gridRow: espaco.row,
                   opacity: cardMovelPos && cardMovelPos.col === espaco.col && cardMovelPos.row === espaco.row ? 0 : 0.5,
-                }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  handleDropOnGrid(espaco.col, espaco.row);
                 }}
               >
                 <div style={styles.spaceCardContent}>
@@ -310,15 +294,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             {/* CardMovel no Grid - Apenas se posicionado */}
             {cardMovelPos && (
               <div
-                draggable
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
+                onMouseDown={handleMouseDown}
                 style={{
                   ...styles.cardMovel,
                   gridColumn: cardMovelPos.col,
                   gridRow: cardMovelPos.row,
                   cursor: isDraggingCard ? 'grabbing' : 'grab',
                   opacity: isDraggingCard ? 0.6 : 1,
+                  transition: 'opacity 0.15s ease',
                 }}
               >
                 <div style={styles.cardMovelHeader}>
@@ -328,7 +311,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             )}
           </div>
 
-          {/* Card fantasma que segue o mouse enquanto arrasta */}
+          {/* Card fantasma que segue o mouse em tempo real */}
           {isDraggingCard && (
             <div
               style={{
@@ -336,11 +319,13 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 position: 'fixed',
                 left: `${mousePos.x - dragOffset.x}px`,
                 top: `${mousePos.y - dragOffset.y}px`,
+                width: '180px',
                 pointerEvents: 'none',
                 zIndex: 9999,
                 opacity: 0.6,
                 cursor: 'grabbing',
-                boxShadow: '0 12px 32px rgba(232, 213, 240, 0.3)',
+                boxShadow: '0 12px 32px rgba(232, 213, 240, 0.35)',
+                transition: 'none',
               }}
             >
               <div style={styles.cardMovelHeader}>
@@ -1168,3 +1153,4 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
+
