@@ -172,7 +172,7 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 // ============ PÁGINA DE VISUALIZAÇÃO DA FICHA ============
 const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [cardMovelPos, setCardMovelPos] = useState({ col: 1, row: 1 });
+  const [cardMovelPos, setCardMovelPos] = useState(null);
   const [isDraggingCard, setIsDraggingCard] = useState(false);
 
   const camposBasicos = [
@@ -202,6 +202,9 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   const handleDragStart = (e) => {
     setIsDraggingCard(true);
+    // Criar imagem transparente para eliminar fantasma padrão
+    const emptyImage = new Image();
+    e.dataTransfer.setDragImage(emptyImage, 0, 0);
   };
 
   const handleDragEnd = (e) => {
@@ -227,7 +230,22 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             </button>
             <div style={{ fontSize: '0.85rem', color: theme.colors.text, opacity: 0.6, marginTop: '1rem', padding: '1rem', borderTop: `1px solid ${theme.colors.borderLight}` }}>
               <p style={{ margin: '0 0 0.5rem 0' }}>💡 Dica:</p>
-              <p style={{ margin: 0 }}>Arraste o card das Informações Básicas no grid para posicioná-lo!</p>
+              <p style={{ margin: 0 }}>Arraste o card para o grid!</p>
+            </div>
+
+            {/* CardMovel no Sidebar */}
+            <div
+              draggable
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              style={{
+                ...styles.cardMovel,
+                marginTop: '1rem',
+              }}
+            >
+              <div style={styles.cardMovelHeader}>
+                <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
+              </div>
             </div>
           </div>
         </aside>
@@ -242,7 +260,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   ...styles.spaceCard,
                   gridColumn: espaco.col,
                   gridRow: espaco.row,
-                  opacity: cardMovelPos.col === espaco.col && cardMovelPos.row === espaco.row ? 0 : 0.5,
+                  opacity: cardMovelPos && cardMovelPos.col === espaco.col && cardMovelPos.row === espaco.row ? 0 : 0.5,
                 }}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -256,29 +274,24 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               </div>
             ))}
 
-            {/* CardMovel - INFORMAÇÕES BÁSICAS */}
-            <div
-              draggable
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              style={{
-                ...styles.cardMovel,
-                gridColumn: cardMovelPos.col,
-                gridRow: cardMovelPos.row,
-                cursor: isDraggingCard ? 'grabbing' : 'grab',
-              }}
-            >
-              <div style={styles.cardMovelHeader}>
-                <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
+            {/* CardMovel no Grid - Apenas se posicionado */}
+            {cardMovelPos.col !== null && cardMovelPos.row !== null && (
+              <div
+                draggable
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                style={{
+                  ...styles.cardMovel,
+                  gridColumn: cardMovelPos.col,
+                  gridRow: cardMovelPos.row,
+                  cursor: isDraggingCard ? 'grabbing' : 'grab',
+                }}
+              >
+                <div style={styles.cardMovelHeader}>
+                  <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
+                </div>
               </div>
-              <div style={styles.cardMovelContent}>
-                {camposBasicos.map((campo, idx) => (
-                  <div key={idx} style={styles.cardMovelField}>
-                    {campo}
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         </main>
       </div>
