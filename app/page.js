@@ -275,7 +275,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             ))}
 
             {/* CardMovel no Grid - Apenas se posicionado */}
-            {cardMovelPos.col !== null && cardMovelPos.row !== null && (
+            {cardMovelPos && (
               <div
                 draggable
                 onDragStart={handleDragStart}
