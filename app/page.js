@@ -183,6 +183,21 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     'Pontos de Experiência'
   ];
 
+  // Define os espaços do grid com posição específica (coluna, linha)
+  const espacos = [];
+  let id = 1;
+  for (let row = 1; row <= 7; row++) {
+    for (let col = 1; col <= 6; col++) {
+      espacos.push({
+        id: id,
+        col: col,
+        row: row,
+        size: '1x1'
+      });
+      id++;
+    }
+  }
+
   return (
     <div style={styles.detailContainer}>
       <div style={styles.detailContent}>
@@ -208,12 +223,18 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         {/* Área principal com grid de espaços */}
         <main style={styles.mainArea}>
           <div style={styles.gridContainer}>
-            {Array.from({ length: 42 }).map((_, idx) => (
+            {espacos.map((espaco) => (
               <div 
-                key={idx}
-                style={styles.spaceCard}
+                key={espaco.id}
+                style={{
+                  ...styles.spaceCard,
+                  gridColumn: espaco.col,
+                  gridRow: espaco.row,
+                }}
               >
-                <div style={styles.spaceCardContent}>1x1</div>
+                <div style={styles.spaceCardContent}>
+                  C:{espaco.col} L:{espaco.row}
+                </div>
               </div>
             ))}
           </div>
@@ -847,14 +868,15 @@ const styles = {
   gridContainer: {
     display: 'grid',
     gridTemplateColumns: 'repeat(6, 1fr)',
-    gap: '0.5rem',
+    gridTemplateRows: 'repeat(7, 100px)',
+    gap: '0.8rem',
     width: '100%',
     padding: '1rem',
   },
   spaceCard: {
-    height: '50px',
-    background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.15) 0%, rgba(107, 91, 149, 0.15) 100%)',
-    border: `2px solid rgba(232, 213, 240, 0.4)`,
+    height: '100px',
+    background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.075) 0%, rgba(107, 91, 149, 0.075) 100%)',
+    border: `2px solid rgba(232, 213, 240, 0.2)`,
     borderRadius: '0.75rem',
     display: 'flex',
     alignItems: 'center',
@@ -863,6 +885,7 @@ const styles = {
     transition: 'all 0.3s ease',
     position: 'relative',
     overflow: 'hidden',
+    opacity: 0.5,
   },
   spaceCardContent: {
     fontSize: '1.2rem',
@@ -986,4 +1009,3 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
-
