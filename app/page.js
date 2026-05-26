@@ -202,6 +202,9 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       setMousePos({ x: 0, y: 0 });
       setDragOffset({ x: 0, y: 0 });
 
+      // Fix 2: remove cursor grabbing global
+      document.body.classList.remove('is-dragging');
+
       // Descobre em qual célula do grid o mouse soltou
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const cell = el?.closest('[data-grid-cell]');
@@ -222,15 +225,13 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   const handleMouseDown = (e) => {
     e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const offset = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
-    setDragOffset(offset);
+    // Fix 1: sempre centraliza o card fantasma no mouse (width 180px / 2 = 90, altura ~20)
+    setDragOffset({ x: 90, y: 20 });
     setMousePos({ x: e.clientX, y: e.clientY });
     setIsDraggingCard(true);
     isDraggingRef.current = true;
+    // Fix 2: força cursor grabbing em toda a página enquanto arrasta
+    document.body.classList.add('is-dragging');
   };
 
   return (
@@ -1144,6 +1145,11 @@ const globalStyles = `
       transform: translateY(0);
     }
   }
+
+  body.is-dragging,
+  body.is-dragging * {
+    cursor: grabbing !important;
+  }
 `;
 
 if (typeof document !== 'undefined') {
@@ -1153,4 +1159,3 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
-
