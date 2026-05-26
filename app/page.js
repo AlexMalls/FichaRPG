@@ -174,6 +174,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [cardMovelPos, setCardMovelPos] = useState(null);
   const [isDraggingCard, setIsDraggingCard] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const camposBasicos = [
     'Nome',
@@ -202,21 +204,50 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   const handleDragStart = (e) => {
     setIsDraggingCard(true);
+    
     // Criar imagem transparente para eliminar fantasma padrão
     const emptyImage = new Image();
     e.dataTransfer.setDragImage(emptyImage, 0, 0);
+    
+    // Calcular offset entre o clique e a posição do elemento
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+    
+    setMousePos({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDraggingCard) {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    }
   };
 
   const handleDragEnd = (e) => {
     setIsDraggingCard(false);
+    setMousePos({ x: 0, y: 0 });
+    setDragOffset({ x: 0, y: 0 });
   };
 
   const handleDropOnGrid = (targetCol, targetRow) => {
     setCardMovelPos({ col: targetCol, row: targetRow });
+    setIsDraggingCard(false);
+    setMousePos({ x: 0, y: 0 });
   };
 
   return (
-    <div style={styles.detailContainer}>
+    <div 
+      style={styles.detailContainer}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => {
+        if (isDraggingCard) {
+          setIsDraggingCard(false);
+          setMousePos({ x: 0, y: 0 });
+        }
+      }}
+    >
       <div style={styles.detailContent}>
         {/* Menu Lateral */}
         <aside style={styles.sidebar}>
@@ -241,6 +272,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               style={{
                 ...styles.cardMovel,
                 marginTop: '1rem',
+                cursor: isDraggingCard ? 'grabbing' : 'grab',
+                opacity: isDraggingCard ? 0.6 : 1,
               }}
             >
               <div style={styles.cardMovelHeader}>
@@ -285,6 +318,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   gridColumn: cardMovelPos.col,
                   gridRow: cardMovelPos.row,
                   cursor: isDraggingCard ? 'grabbing' : 'grab',
+                  opacity: isDraggingCard ? 0.6 : 1,
                 }}
               >
                 <div style={styles.cardMovelHeader}>
@@ -293,6 +327,27 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               </div>
             )}
           </div>
+
+          {/* Card fantasma que segue o mouse enquanto arrasta */}
+          {isDraggingCard && (
+            <div
+              style={{
+                ...styles.cardMovel,
+                position: 'fixed',
+                left: `${mousePos.x - dragOffset.x}px`,
+                top: `${mousePos.y - dragOffset.y}px`,
+                pointerEvents: 'none',
+                zIndex: 9999,
+                opacity: 0.6,
+                cursor: 'grabbing',
+                boxShadow: '0 12px 32px rgba(232, 213, 240, 0.3)',
+              }}
+            >
+              <div style={styles.cardMovelHeader}>
+                <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
@@ -912,6 +967,7 @@ const styles = {
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'flex-start',
+    position: 'relative',
   },
   emptyState: {
     textAlign: 'center',
@@ -927,6 +983,7 @@ const styles = {
     gap: '0.8rem',
     width: '100%',
     padding: '1rem',
+    position: 'relative',
   },
   spaceCard: {
     height: '100px',
