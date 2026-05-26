@@ -174,7 +174,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [cardMovelPos, setCardMovelPos] = useState(null);
   const [isDraggingCard, setIsDraggingCard] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   const camposBasicos = [
     'Nome',
@@ -206,18 +205,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     // Criar imagem transparente para eliminar fantasma padrão
     const emptyImage = new Image();
     e.dataTransfer.setDragImage(emptyImage, 0, 0);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDrag = (e) => {
-    if (e.clientX !== 0 || e.clientY !== 0) {
-      setDragOffset({ x: e.clientX, y: e.clientY });
-    }
   };
 
   const handleDragEnd = (e) => {
     setIsDraggingCard(false);
-    setDragOffset({ x: 0, y: 0 });
   };
 
   const handleDropOnGrid = (targetCol, targetRow) => {
@@ -226,25 +217,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   return (
     <div style={styles.detailContainer}>
-      {/* Fantasma do card durante o drag */}
-      {isDraggingCard && (
-        <div
-          style={{
-            position: 'fixed',
-            left: dragOffset.x - 100,
-            top: dragOffset.y - 50,
-            pointerEvents: 'none',
-            zIndex: 9999,
-            opacity: 0.8,
-            ...styles.cardMovel,
-          }}
-        >
-          <div style={styles.cardMovelHeader}>
-            <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
-          </div>
-        </div>
-      )}
-
       <div style={styles.detailContent}>
         {/* Menu Lateral */}
         <aside style={styles.sidebar}>
@@ -265,15 +237,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             <div
               draggable
               onDragStart={handleDragStart}
-              onDrag={handleDrag}
               onDragEnd={handleDragEnd}
               style={{
                 ...styles.cardMovel,
                 marginTop: '1rem',
-                cursor: isDraggingCard ? 'grabbing' : 'grab',
-                opacity: isDraggingCard ? 0.6 : 1,
-                transition: isDraggingCard ? 'none' : 'opacity 0.3s ease',
-              }}
               }}
             >
               <div style={styles.cardMovelHeader}>
