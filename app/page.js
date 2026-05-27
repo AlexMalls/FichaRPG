@@ -528,7 +528,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     width: '100%',
                     boxSizing: 'border-box',
                     alignContent: 'start',
-                    margin: '-10px',
+                    margin: '0px',
                     flex: 1,
                     overflow: 'hidden',
                   }}
