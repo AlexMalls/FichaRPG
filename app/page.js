@@ -435,7 +435,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [resizePreview, activeSize.cols, activeSize.rows, cellWidth]);
+  }, [resizePreview, cellWidth]);
 
   const handleCardMouseDown = (e) => {
     e.preventDefault();
@@ -1738,3 +1738,4 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
+
