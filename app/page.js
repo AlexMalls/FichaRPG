@@ -199,14 +199,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [ghostSize, setGhostSize]           = useState({ w: 180, h: 100 });
   const [hoverCell, setHoverCell]           = useState(null);
 
-  // ── Estado para atributos do card ──
-  const [cardAttributes, setCardAttributes] = useState({
-    nome: ficha?.cardAttributes?.nome || '',
-    classe: ficha?.cardAttributes?.classe || '',
-    nivel: ficha?.cardAttributes?.nivel || '',
-    raca: ficha?.cardAttributes?.raca || '',
-  });
-
   // ── largura calculada de uma célula do grid (atualizada via ResizeObserver) ──
   const [cellWidth, setCellWidth] = useState(null);
 
@@ -399,21 +391,13 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     );
   };
 
-  // ── Lista de atributos que vão aparecer no grid ──
-  const attributesKeys = ['nome', 'classe', 'nivel', 'raca'];
-  const attributesLabels = {
-    nome: 'Nome',
-    classe: 'Classe',
-    nivel: 'Nível',
-    raca: 'Raça',
-  };
-
-  const handleAttributeChange = (key, value) => {
-    setCardAttributes(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
+  // ── ALINHAMENTO PERFEITO COM O GRID ──
+  // Cada campo deve ter exatamente a mesma largura de uma célula do grid
+  // O gap entre campos deve ser igual ao gap do grid
+  // Padding interno do card deve ser 0 para perfeito alinhamento
+  
+  const fieldCols = activeSize.cols;
+  const fieldBoxWidth = cellWidth; // Mesma largura exata da célula do grid
 
   return (
     <div style={{ ...styles.detailContainer, userSelect: 'none' }}>
@@ -425,7 +409,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             <button onClick={onBack} style={styles.backButtonSidebar}>← Voltar</button>
 
             <button 
-              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize, cardAttributes })} 
+              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize })} 
               style={{
                 ...styles.buttonPrimary,
                 marginTop: '0.5rem',
@@ -531,11 +515,16 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   onMouseDown={e => e.stopPropagation()}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: cellWidth != null
-                      ? `repeat(${activeSize.cols}, ${cellWidth}px)`
+                    // Mesmo número de colunas do card
+                    gridTemplateColumns: fieldBoxWidth != null
+                      ? `repeat(${activeSize.cols}, ${fieldBoxWidth}px)`
                       : `repeat(${activeSize.cols}, 1fr)`,
+                    // Mesmo número de linhas do card (sem altura fixa, deixa crescer)
                     gridTemplateRows: `repeat(${activeSize.rows}, ${CELL_H}px)`,
-                    gap: `${GAP}px`,
+                    // Gap idêntico ao grid externo
+                    gap: `14px`,
+                    rowGap: '8px',
+                    // Sem padding para perfeito alinhamento
                     padding: '0px',
                     width: '100%',
                     boxSizing: 'border-box',
@@ -545,43 +534,27 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     overflow: 'hidden',
                   }}
                 >
-                  {/* Gerar células do grid interno com textboxes editáveis */}
+                  {/* Gerar células do grid interno */}
                   {Array.from({ length: activeSize.cols * activeSize.rows }).map((_, idx) => {
                     const col = (idx % activeSize.cols) + 1;
                     const row = Math.floor(idx / activeSize.cols) + 1;
-                    const attributeKey = attributesKeys[idx];
-                    const hasAttribute = attributeKey !== undefined;
-                    const attributeLabel = hasAttribute ? attributesLabels[attributeKey] : null;
-
                     return (
                       <div
                         key={idx}
                         style={{
-                          ...styles.gridInternalCell,
+                          ...styles.spaceCard,
+                          height: `${CELL_H}px`,
                           gridColumn: col,
                           gridRow: row,
+                          margin: '0px',
+                          marginTop: '6px',
+                          borderRadius: '0.5rem',
+                          opacity: 0.6,
                         }}
                       >
-                        {hasAttribute ? (
-                          <div style={styles.fieldWrapper}>
-                            <label style={styles.fieldLabel}>{attributeLabel}</label>
-                            <input
-                              type="text"
-                              value={cardAttributes[attributeKey]}
-                              onChange={(e) => handleAttributeChange(attributeKey, e.target.value)}
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onTouchStart={(e) => e.stopPropagation()}
-                              placeholder={`Editar ${attributeLabel.toLowerCase()}`}
-                              style={styles.fieldInput}
-                            />
-                          </div>
-                        ) : (
-                          <div style={styles.emptyCellPlaceholder}>
-                            <div style={styles.emptyCellText}>
-                              {col}:{row}
-                            </div>
-                          </div>
-                        )}
+                        <div style={styles.spaceCardContent}>
+                          {col}:{row}
+                        </div>
                       </div>
                     );
                   })}
@@ -756,13 +729,7 @@ const EnnoisSite = () => {
         alinhamento: '',
         xp: '',
         cardMovelPos: null,
-        cardSize: { cols: 2, rows: 4 },
-        cardAttributes: {
-          nome: '',
-          classe: '',
-          nivel: '',
-          raca: '',
-        }
+        cardSize: { cols: 2, rows: 4 }
       });
 
       mostrarToast(`Ficha "${nomeFicha}" criada com sucesso!`, 'success');
@@ -1398,67 +1365,15 @@ const styles = {
     whiteSpace: 'nowrap',
   },
 
-  // ============ GRID INTERNO COM TEXTBOXES ============
-  gridInternalCell: {
-    height: `${CELL_H}px`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+  // ── Campos editáveis dentro do card ──
+  cardFieldsGrid: {
+    display: 'grid',
+    gap: `${GAP}px`,
+    padding: `0px`,
+    width: '100%',
+    boxSizing: 'border-box',
+    alignContent: 'start',
     margin: '0px',
-    padding: '0px',
-  },
-  fieldWrapper: {
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '2px',
-    padding: '4px 6px',
-    boxSizing: 'border-box',
-    background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.08) 0%, rgba(107, 91, 149, 0.08) 100%)',
-    border: `1.5px solid rgba(232, 213, 240, 0.15)`,
-    borderRadius: '0.4rem',
-  },
-  fieldLabel: {
-    fontSize: '0.6rem',
-    fontWeight: '600',
-    color: 'rgba(232, 213, 240, 0.7)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.3px',
-    margin: 0,
-    lineHeight: 1,
-  },
-  fieldInput: {
-    width: '100%',
-    padding: '3px 4px',
-    height: '18px',
-    fontSize: '0.65rem',
-    background: 'rgba(0, 0, 0, 0.3)',
-    border: `1px solid rgba(232, 213, 240, 0.2)`,
-    borderRadius: '0.3rem',
-    color: '#E8D5F0',
-    outline: 'none',
-    transition: 'all 0.2s ease',
-    boxSizing: 'border-box',
-    lineHeight: 1,
-  },
-  emptyCellPlaceholder: {
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.05) 0%, rgba(107, 91, 149, 0.05) 100%)',
-    border: `1.5px solid rgba(232, 213, 240, 0.08)`,
-    borderRadius: '0.4rem',
-  },
-  emptyCellText: {
-    fontSize: '0.75rem',
-    color: 'rgba(232, 213, 240, 0.3)',
-    fontWeight: '500',
   },
 
   // ============ CARD EXPANDÍVEL ============
@@ -1577,7 +1492,7 @@ const globalStyles = `
     cursor: nwse-resize !important;
   }
 
-  .field-input:focus {
+  .card-field-input:focus {
     border-color: rgba(232, 213, 240, 0.5) !important;
     background: rgba(0, 0, 0, 0.5) !important;
   }
