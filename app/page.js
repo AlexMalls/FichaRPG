@@ -199,6 +199,16 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [ghostSize, setGhostSize]           = useState({ w: 180, h: 100 });
   const [hoverCell, setHoverCell]           = useState(null);
 
+  // ── Estado para atributos editáveis ──
+  const [cardAttributes, setCardAttributes] = useState({
+    classe: ficha?.classe || '',
+    nivel: ficha?.nivel || '',
+    raca: ficha?.raca || '',
+    antecedente: ficha?.antecedente || '',
+    alinhamento: ficha?.alinhamento || '',
+    xp: ficha?.xp || '',
+  });
+
   // ── largura calculada de uma célula do grid (atualizada via ResizeObserver) ──
   const [cellWidth, setCellWidth] = useState(null);
 
@@ -399,6 +409,23 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const fieldCols = activeSize.cols;
   const fieldBoxWidth = cellWidth; // Mesma largura exata da célula do grid
 
+  const attributesKeys = ['classe', 'nivel', 'raca', 'antecedente', 'alinhamento', 'xp'];
+  const attributesLabels = {
+    classe: 'Classe',
+    nivel: 'Nível',
+    raca: 'Raça',
+    antecedente: 'Antecedente',
+    alinhamento: 'Alinhamento',
+    xp: 'XP',
+  };
+
+  const handleAttributeChange = (key, value) => {
+    setCardAttributes(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
   return (
     <div style={{ ...styles.detailContainer, userSelect: 'none' }}>
       <div style={styles.detailContent}>
@@ -409,7 +436,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             <button onClick={onBack} style={styles.backButtonSidebar}>← Voltar</button>
 
             <button 
-              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize })} 
+              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize, ...cardAttributes })} 
               style={{
                 ...styles.buttonPrimary,
                 marginTop: '0.5rem',
@@ -534,27 +561,95 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     overflow: 'hidden',
                   }}
                 >
-                  {/* Gerar células do grid interno */}
+                  {/* Gerar células do grid interno com textboxes */}
                   {Array.from({ length: activeSize.cols * activeSize.rows }).map((_, idx) => {
                     const col = (idx % activeSize.cols) + 1;
                     const row = Math.floor(idx / activeSize.cols) + 1;
+                    const attributeKey = attributesKeys[idx];
+                    const hasAttribute = attributeKey !== undefined;
+                    const attributeLabel = hasAttribute ? attributesLabels[attributeKey] : null;
+
                     return (
                       <div
                         key={idx}
                         style={{
-                          ...styles.spaceCard,
-                          height: `${CELL_H}px`,
                           gridColumn: col,
                           gridRow: row,
                           margin: '0px',
-                          marginTop: '6px',
-                          borderRadius: '0.5rem',
-                          opacity: 0.6,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '4px',
+                          boxSizing: 'border-box',
                         }}
                       >
-                        <div style={styles.spaceCardContent}>
-                          {col}:{row}
-                        </div>
+                        {hasAttribute ? (
+                          <div style={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '2px',
+                            background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.08) 0%, rgba(107, 91, 149, 0.08) 100%)',
+                            border: `1px solid rgba(232, 213, 240, 0.15)`,
+                            borderRadius: '0.4rem',
+                            padding: '4px 6px',
+                          }}>
+                            <label style={{
+                              fontSize: '0.55rem',
+                              fontWeight: '600',
+                              color: 'rgba(232, 213, 240, 0.7)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.3px',
+                              margin: 0,
+                              lineHeight: 1,
+                            }}>{attributeLabel}</label>
+                            <input
+                              type="text"
+                              value={cardAttributes[attributeKey]}
+                              onChange={(e) => handleAttributeChange(attributeKey, e.target.value)}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              placeholder=""
+                              style={{
+                                width: '100%',
+                                padding: '3px 4px',
+                                height: '18px',
+                                fontSize: '0.65rem',
+                                background: 'rgba(0, 0, 0, 0.3)',
+                                border: `1px solid rgba(232, 213, 240, 0.2)`,
+                                borderRadius: '0.3rem',
+                                color: '#E8D5F0',
+                                outline: 'none',
+                                transition: 'all 0.2s ease',
+                                boxSizing: 'border-box',
+                                lineHeight: 1,
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div style={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.03) 0%, rgba(107, 91, 149, 0.03) 100%)',
+                            border: `1px solid rgba(232, 213, 240, 0.05)`,
+                            borderRadius: '0.4rem',
+                            opacity: 0.3,
+                          }}>
+                            <div style={{
+                              fontSize: '0.7rem',
+                              color: 'rgba(232, 213, 240, 0.2)',
+                              fontWeight: '500',
+                            }}>
+                              {col}:{row}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
