@@ -523,8 +523,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     gridTemplateRows: `repeat(${activeSize.rows}, ${CELL_H}px)`,
                     // Gap idêntico ao grid externo
                     gap: `14px`,
-                    rowGap: '4px',
-                    marginTop: '8px',
+                    rowGap: '6px',
                     // Sem padding para perfeito alinhamento
                     padding: '0px',
                     width: '100%',
