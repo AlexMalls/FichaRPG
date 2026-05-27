@@ -576,6 +576,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           gridColumn: col,
                           gridRow: row,
                           margin: '0px',
+                          marginTop: '8px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
