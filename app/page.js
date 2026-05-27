@@ -490,22 +490,18 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
                 </div>
 
+                {/* ✨ Correção aplicada AQUI: Flex 1 invés de matemática rígida de tamanhos ✨ */}
                 <div
                   onMouseDown={e => e.stopPropagation()}
                   style={{
                     ...styles.cardFieldsGrid,
                     display: 'grid',
-                    gridTemplateColumns: `repeat(2, calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) - 12px))`,
-                    gridTemplateRows:    `repeat(4, ${CELL_H - 12}px)`,
-                    gap: `${GAP + 12}px`, 
-                    width:      `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px - 12px)`,
-                    minWidth:   `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px - 12px)`,
-                    maxWidth:   `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px - 12px)`,
-                    height:    `${CELL_H * 4 + GAP * 3 - 12}px`,
-                    minHeight: `${CELL_H * 4 + GAP * 3 - 12}px`,
-                    maxHeight: `${CELL_H * 4 + GAP * 3 - 12}px`,
+                    gridTemplateColumns: '1fr 1fr', 
+                    gridTemplateRows: 'repeat(4, 1fr)',
+                    gap: `${GAP}px`, 
+                    width: '100%',
+                    flex: 1, 
                     overflow: 'hidden',
-                    flexShrink: 0,
                   }}
                 >
                   {[
@@ -1137,7 +1133,7 @@ const styles = {
     background: theme.colors.bgDark,
     border: `1px solid ${theme.colors.border}`,
     borderRadius: '0.5rem',
-                marginBottom: '1rem',
+    marginBottom: '1rem',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
