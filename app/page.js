@@ -758,7 +758,11 @@ const EnnoisSite = () => {
         transition: 'opacity 1s ease-out'
       }}>
         <div style={styles.welcomeLogo}>
-          <div style={styles.welcomeText}>🐉 Ennoia</div>
+          <img
+            src="/images/logo.png"
+            alt="Ennoia"
+            style={{ width: '120px', height: '120px', objectFit: 'contain' }}
+          />
         </div>
       </div>
 
@@ -896,7 +900,11 @@ const EnnoisSite = () => {
             {currentPage === 'creditos' && (
               <div style={styles.page}>
                 <div style={styles.creditsContainer}>
-                  <p style={styles.creditsText}>🐉 Ennoia</p>
+                  <img
+                    src="/images/logo.png"
+                    alt="Ennoia"
+                    style={{ width: '80px', height: '80px', objectFit: 'contain' }}
+                  />
                   <p style={styles.creditsSubtext}>Site desenvolvido com Firebase Firestore</p>
                   <p style={{fontSize: '0.9rem', marginTop: '2rem', opacity: 0.6}}>
                     Versão 2.0 com visualização de fichas
@@ -939,14 +947,6 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  welcomeText: {
-    fontSize: '3rem',
-    fontWeight: 'bold',
-    background: theme.colors.accent,
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    backgroundClip: 'text',
   },
   nav: {
     display: 'flex',
