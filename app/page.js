@@ -523,8 +523,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     gridTemplateRows: `repeat(${activeSize.rows}, ${CELL_H}px)`,
                     // Gap idêntico ao grid externo
                     gap: `${GAP}px`,
-                    // Padding interno
-                    padding: `4px 2px 2px 2px`,
+                    // Sem padding para perfeito alinhamento
+                    padding: `0px`,
                     width: '100%',
                     boxSizing: 'border-box',
                     alignContent: 'start',
@@ -1316,7 +1316,7 @@ const styles = {
   // ============ CARD MÓVEL ============
   cardMovel: {
     background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.25) 0%, rgba(107, 91, 149, 0.25) 100%)',
-    border: `2px solid rgba(232, 213, 240, 0.6)`,
+    border: `2px solid rgba(232, 213, 240, 0.2)`,
     borderRadius: '0.75rem',
     display: 'flex',
     flexDirection: 'column',
@@ -1326,15 +1326,18 @@ const styles = {
     overflow: 'hidden',
     boxShadow: '0 4px 12px rgba(232, 213, 240, 0.15)',
     userSelect: 'none',
+    padding: '0px',
+    margin: '0px',
   },
   cardMovelHeader: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: '0.4rem 0.5rem',
-    borderBottom: `1px solid rgba(232, 213, 240, 0.3)`,
-    minHeight: 'auto',
+    height: `${CELL_H}px`,
     flexShrink: 0,
+    padding: '0px',
+    margin: '0px',
+    borderBottom: `1px solid rgba(232, 213, 240, 0.3)`,
   },
   cardMovelTitle: {
     margin: 0,
