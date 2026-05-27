@@ -495,15 +495,25 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   onMouseDown={e => e.stopPropagation()}
                   style={{
                     ...styles.cardFieldsGrid,
-                    // 1. Adiciona o gap dinâmico para alinhar com o grid principal
-                    gap: `${GAP}px`, 
-                    // 2. Multiplica o cálculo da largura por 2 e soma o GAP para abranger 2 colunas perfeitamente (tornando cada box interna 1x1)
-                    width:     `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px)`,
-                    minWidth:  `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px)`,
-                    maxWidth:  `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px)`,
-                    height:    `${CELL_H * 4 + GAP * 3}px`,
-                    minHeight: `${CELL_H * 4 + GAP * 3}px`,
-                    maxHeight: `${CELL_H * 4 + GAP * 3}px`,
+                    display: 'grid',
+                    
+                    // 1. Forçamos o grid interno a criar 2 colunas e 4 linhas onde cada caixinha 
+                    // tem exatamente o tamanho da célula de trás MENOS 12px (6px de cada lado de respiro)
+                    gridTemplateColumns: `repeat(2, calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) - 12px))`,
+                    gridTemplateRows:    `repeat(4, ${CELL_H - 12}px)`,
+                    
+                    // 2. Aumentamos o GAP interno em 12px para compensar o encolhimento das caixas,
+                    // mantendo elas perfeitamente centralizadas sobre o meio das células de trás
+                    gap: `${GAP + 12}px`, 
+                
+                    // 3. Subtraímos 12px da largura e altura totais para casar perfeitamente com a margem do card pai
+                    width:      `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px - 12px)`,
+                    minWidth:   `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px - 12px)`,
+                    maxWidth:   `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px - 12px)`,
+                    height:    `${CELL_H * 4 + GAP * 3 - 12}px`,
+                    minHeight: `${CELL_H * 4 + GAP * 3 - 12}px`,
+                    maxHeight: `${CELL_H * 4 + GAP * 3 - 12}px`,
+                    
                     overflow: 'hidden',
                     flexShrink: 0,
                   }}
