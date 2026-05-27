@@ -522,7 +522,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     // Mesmo número de linhas do card (sem altura fixa, deixa crescer)
                     gridTemplateRows: `repeat(${activeSize.rows}, ${CELL_H}px)`,
                     // Gap idêntico ao grid externo
-                    gap: `20px`,
+                    gap: `12px`,
                     // Sem padding para perfeito alinhamento
                     padding: '0px',
                     width: '100%',
