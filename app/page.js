@@ -1316,7 +1316,7 @@ const styles = {
   // ============ CARD MÓVEL ============
   cardMovel: {
     background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.25) 0%, rgba(107, 91, 149, 0.25) 100%)',
-    border: `2px solid rgba(232, 213, 240, 0.2)`,
+    border: 'none',
     borderRadius: '0.75rem',
     display: 'flex',
     flexDirection: 'column',
@@ -1324,7 +1324,7 @@ const styles = {
     transition: 'all 0.3s ease',
     position: 'relative',
     overflow: 'hidden',
-    boxShadow: '0 4px 12px rgba(232, 213, 240, 0.15)',
+    boxShadow: '0 0 0 2px rgba(232, 213, 240, 0.2), 0 4px 12px rgba(232, 213, 240, 0.15)',
     userSelect: 'none',
     padding: '0px',
     margin: '0px',
