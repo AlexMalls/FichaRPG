@@ -474,6 +474,9 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   ...styles.cardMovel,
                   gridColumn: `${cardMovelPos.col} / span ${activeSize.cols}`,
                   gridRow:    `${cardMovelPos.row} / span ${activeSize.rows}`,
+
+                  margin: '6px',
+                  
                   cursor: isDraggingCard ? 'grabbing' : 'grab',
                   opacity: isDraggingCard ? 0.6 : 1,
                   transition: 'opacity 0.15s ease, grid-column 0.1s ease, grid-row 0.1s ease',
@@ -597,10 +600,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               style={{
                 ...styles.cardMovel,
                 position: 'fixed',
-                left: `${mousePos.x - dragOffset.x}px`,
-                top:  `${mousePos.y - dragOffset.y}px`,
-                width:  `${ghostSize.w}px`,
-                height: `${ghostSize.h}px`,
+                left: `${mousePos.x - dragOffset.x + 6}px`,  // +6px para deslocar o recuo da esquerda
+                top:  `${mousePos.y - dragOffset.y + 6}px`,  // +6px para deslocar o recuo do topo
+                width:  `${ghostSize.w - 12}px`,             // Subtrai 6px da esquerda + 6px da direita
+                height: `${ghostSize.h - 12}px`,             // Subtrai 6px do topo + 6px do fundo
                 pointerEvents: 'none',
                 zIndex: 9999,
                 opacity: 0.6,
