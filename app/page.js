@@ -406,11 +406,13 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     );
   };
 
-  // ── largura de cada campo interno: mesma de uma célula do grid, menos 20px (10px cada lado) ──
-  const fieldBoxWidth = cellWidth != null ? cellWidth - 20 : null;
-
-  // ── número de colunas de campos que cabem no card (igual ao span de colunas do card) ──
+  // ── ALINHAMENTO PERFEITO COM O GRID ──
+  // Cada campo deve ter exatamente a mesma largura de uma célula do grid
+  // O gap entre campos deve ser igual ao gap do grid
+  // Padding interno do card deve ser 0 para perfeito alinhamento
+  
   const fieldCols = activeSize.cols;
+  const fieldBoxWidth = cellWidth; // Mesma largura exata da célula do grid
 
   return (
     <div style={{ ...styles.detailContainer, userSelect: 'none' }}>
@@ -508,7 +510,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   ...styles.cardMovel,
                   gridColumn: `${cardMovelPos.col} / span ${activeSize.cols}`,
                   gridRow:    `${cardMovelPos.row} / span ${activeSize.rows}`,
-                  margin: '6px',
+                  margin: '0px',
                   cursor: isDraggingCard ? 'grabbing' : 'grab',
                   opacity: isDraggingCard ? 0.6 : 1,
                   transition: 'opacity 0.15s ease, grid-column 0.1s ease, grid-row 0.1s ease',
@@ -516,28 +518,31 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   zIndex: 2,
                   flexDirection: 'column',
                   display: 'flex',
+                  padding: '0px',
                 }}
               >
                 <div style={styles.cardMovelHeader}>
                   <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
                 </div>
 
-                {/* ✨ CAMPOS ALINHADOS COM O GRID ✨ */}
+                {/* ✨ CAMPOS ALINHADOS PERFEITAMENTE COM O GRID ✨ */}
                 <div
                   onMouseDown={e => e.stopPropagation()}
                   style={{
                     display: 'grid',
-                    // Uma coluna por coluna do grid que o card ocupa
+                    // Cada coluna tem a largura exata de uma célula do grid
                     gridTemplateColumns: fieldBoxWidth != null
                       ? `repeat(${fieldCols}, ${fieldBoxWidth}px)`
                       : `repeat(${fieldCols}, 1fr)`,
-                    // Alinha a grade de campos com a grade do grid:
-                    // 10px de margem interna (metade dos 20px de folga por célula)
+                    // Gap idêntico ao grid de fundo
                     gap: `${GAP}px`,
-                    padding: `6px 10px 4px 10px`,
+                    // Padding = 0 para perfeito alinhamento
+                    padding: `0px`,
                     width: '100%',
                     boxSizing: 'border-box',
                     alignContent: 'start',
+                    // Remove qualquer margem que possa desalinhar
+                    margin: '0px',
                   }}
                 >
                   {[
@@ -555,8 +560,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                         className="card-field-input"
                         style={{
                           ...styles.cardFieldInput,
-                          // largura exata = célula do grid − 20px, ou 100% como fallback
-                          width: fieldBoxWidth != null ? `${fieldBoxWidth}px` : '100%',
+                          // Largura 100% da célula, sem redução
+                          width: '100%',
                           boxSizing: 'border-box',
                         }}
                         value={fichaData[campo]}
@@ -1329,7 +1334,6 @@ const styles = {
     borderRadius: '0.75rem',
     display: 'flex',
     flexDirection: 'column',
-    padding: '0.75rem',
     cursor: 'grab',
     transition: 'all 0.3s ease',
     position: 'relative',
@@ -1341,8 +1345,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: '0.5rem',
-    paddingBottom: '0.5rem',
+    padding: '0.5rem 0.75rem',
     borderBottom: `1px solid rgba(232, 213, 240, 0.3)`,
   },
   cardMovelTitle: {
@@ -1373,10 +1376,11 @@ const styles = {
   cardFieldsGrid: {
     display: 'grid',
     gap: `${GAP}px`,
-    padding: `6px 10px 4px 10px`,
+    padding: `0px`,
     width: '100%',
     boxSizing: 'border-box',
     alignContent: 'start',
+    margin: '0px',
   },
   cardFieldBox: {
     display: 'flex',
