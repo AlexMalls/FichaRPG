@@ -202,21 +202,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── largura calculada de uma célula do grid (atualizada via ResizeObserver) ──
   const [cellWidth, setCellWidth] = useState(null);
 
-  // Campos editáveis da ficha — inicializados com os dados vindos do Firestore
-  const [fichaData, setFichaData] = useState({
-    nome:         ficha?.nome         || '',
-    classe:       ficha?.classe       || '',
-    nivel:        ficha?.nivel        || '',
-    raca:         ficha?.raca         || '',
-    antecedente:  ficha?.antecedente  || '',
-    alinhamento:  ficha?.alinhamento  || '',
-    xp:           ficha?.xp           || '',
-  });
-
-  const handleFieldChange = (campo, valor) => {
-    setFichaData(prev => ({ ...prev, [campo]: valor }));
-  };
-
   const isDraggingRef  = React.useRef(false);
   const isResizingRef  = React.useRef(false);
   const gridRef        = React.useRef(null);
@@ -424,7 +409,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             <button onClick={onBack} style={styles.backButtonSidebar}>← Voltar</button>
 
             <button 
-              onClick={() => onUpdate(ficha.id, { ...fichaData, cardMovelPos, cardSize })} 
+              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize })} 
               style={{
                 ...styles.buttonPrimary,
                 marginTop: '0.5rem',
@@ -525,51 +510,52 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
                 </div>
 
-                {/* ✨ CAMPOS ALINHADOS PERFEITAMENTE COM O GRID ✨ */}
+                {/* ✨ GRID INTERNO ESPELHO DO GRID EXTERNO ✨ */}
                 <div
                   onMouseDown={e => e.stopPropagation()}
                   style={{
                     display: 'grid',
-                    // Cada coluna tem a largura exata de uma célula do grid
+                    // Mesmo número de colunas do card
                     gridTemplateColumns: fieldBoxWidth != null
-                      ? `repeat(${fieldCols}, ${fieldBoxWidth}px)`
-                      : `repeat(${fieldCols}, 1fr)`,
-                    // Gap idêntico ao grid de fundo
+                      ? `repeat(${activeSize.cols}, ${fieldBoxWidth}px)`
+                      : `repeat(${activeSize.cols}, 1fr)`,
+                    // Mesmo número de linhas do card (sem altura fixa, deixa crescer)
+                    gridTemplateRows: `repeat(${activeSize.rows}, ${CELL_H}px)`,
+                    // Gap idêntico ao grid externo
                     gap: `${GAP}px`,
-                    // Pequeno padding para respiro visual
+                    // Padding interno
                     padding: `4px 2px 2px 2px`,
                     width: '100%',
                     boxSizing: 'border-box',
                     alignContent: 'start',
-                    // Remove qualquer margem que possa desalinhar
                     margin: '0px',
+                    flex: 1,
+                    overflow: 'hidden',
                   }}
                 >
-                  {[
-                    { campo: 'nome',        label: 'Nome'        },
-                    { campo: 'classe',      label: 'Classe'      },
-                    { campo: 'nivel',       label: 'Nível'       },
-                    { campo: 'raca',        label: 'Raça'        },
-                    { campo: 'antecedente', label: 'Antecedente' },
-                    { campo: 'alinhamento', label: 'Alinhamento' },
-                    { campo: 'xp',          label: 'XP'          },
-                  ].map(({ campo, label }) => (
-                    <div key={campo} style={styles.cardFieldBox}>
-                      <span style={styles.cardFieldLabel}>{label}</span>
-                      <input
-                        className="card-field-input"
+                  {/* Gerar células do grid interno */}
+                  {Array.from({ length: activeSize.cols * activeSize.rows }).map((_, idx) => {
+                    const col = (idx % activeSize.cols) + 1;
+                    const row = Math.floor(idx / activeSize.cols) + 1;
+                    return (
+                      <div
+                        key={idx}
                         style={{
-                          ...styles.cardFieldInput,
-                          // Largura 100% da célula, sem redução
-                          width: '100%',
-                          boxSizing: 'border-box',
+                          ...styles.spaceCard,
+                          height: `${CELL_H}px`,
+                          gridColumn: col,
+                          gridRow: row,
+                          margin: '0px',
+                          borderRadius: '0.5rem',
+                          opacity: 0.6,
                         }}
-                        value={fichaData[campo]}
-                        onChange={e => handleFieldChange(campo, e.target.value)}
-                        placeholder="—"
-                      />
-                    </div>
-                  ))}
+                      >
+                        <div style={styles.spaceCardContent}>
+                          {col}:{row}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <button
@@ -1384,33 +1370,6 @@ const styles = {
     alignContent: 'start',
     margin: '0px',
   },
-  cardFieldBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    padding: '6px 8px',
-    boxSizing: 'border-box',
-  },
-  cardFieldLabel: {
-    fontSize: '0.55rem',
-    fontWeight: '700',
-    color: 'rgba(232, 213, 240, 0.5)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    paddingLeft: '2px',
-  },
-  cardFieldInput: {
-    background: 'rgba(0, 0, 0, 0.3)',
-    border: '1px solid rgba(232, 213, 240, 0.15)',
-    borderRadius: '3px',
-    color: '#E8D5F0',
-    fontSize: '0.65rem',
-    padding: '2px 4px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.2s',
-    width: '100%',
-  },
 
   // ============ CARD EXPANDÍVEL ============
   card: {
@@ -1541,4 +1500,3 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
-
