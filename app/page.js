@@ -536,8 +536,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                       : `repeat(${fieldCols}, 1fr)`,
                     // Gap idêntico ao grid de fundo
                     gap: `${GAP}px`,
-                    // Padding = 0 para perfeito alinhamento
-                    padding: `0px`,
+                    // Pequeno padding para respiro visual
+                    padding: `4px 2px 2px 2px`,
                     width: '100%',
                     boxSizing: 'border-box',
                     alignContent: 'start',
@@ -1345,12 +1345,14 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: '0.5rem 0.75rem',
+    padding: '0.4rem 0.5rem',
     borderBottom: `1px solid rgba(232, 213, 240, 0.3)`,
+    minHeight: 'auto',
+    flexShrink: 0,
   },
   cardMovelTitle: {
     margin: 0,
-    fontSize: '0.8rem',
+    fontSize: '0.7rem',
     fontWeight: '600',
     color: '#E8D5F0',
     textAlign: 'center',
@@ -1386,25 +1388,28 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '2px',
+    padding: '6px 8px',
+    boxSizing: 'border-box',
   },
   cardFieldLabel: {
-    fontSize: '0.6rem',
+    fontSize: '0.55rem',
     fontWeight: '700',
     color: 'rgba(232, 213, 240, 0.5)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
-    paddingLeft: '4px',
+    paddingLeft: '2px',
   },
   cardFieldInput: {
     background: 'rgba(0, 0, 0, 0.3)',
     border: '1px solid rgba(232, 213, 240, 0.15)',
-    borderRadius: '4px',
+    borderRadius: '3px',
     color: '#E8D5F0',
-    fontSize: '0.72rem',
-    padding: '3px 6px',
+    fontSize: '0.65rem',
+    padding: '2px 4px',
     outline: 'none',
     boxSizing: 'border-box',
     transition: 'border-color 0.2s',
+    width: '100%',
   },
 
   // ============ CARD EXPANDÍVEL ============
@@ -1536,3 +1541,4 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
+
