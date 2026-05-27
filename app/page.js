@@ -196,6 +196,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [resizePreview, setResizePreview]   = useState(null);
   const [ghostSize, setGhostSize]           = useState({ w: 180, h: 100 });
   const [hoverCell, setHoverCell]           = useState(null);
+  const [cellWidth, setCellWidth]           = useState(0);
 
   // Campos editáveis da ficha — inicializados com os dados vindos do Firestore
   const [fichaData, setFichaData] = useState({
@@ -211,8 +212,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const handleFieldChange = (campo, valor) => {
     setFichaData(prev => ({ ...prev, [campo]: valor }));
   };
-
-
 
   const isDraggingRef  = React.useRef(false);
   const isResizingRef  = React.useRef(false);
@@ -274,11 +273,25 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     return { col, row };
   };
 
+  // ResizeObserver para medir a largura real da célula
+  useEffect(() => {
+    if (!gridRef.current) return;
+
+    const observer = new ResizeObserver(() => {
+      const rect = gridRef.current.getBoundingClientRect();
+      const availableWidth = rect.width - GRID_PADDING * 2;
+      const cellW = (availableWidth - GAP * (GRID_COLS - 1)) / GRID_COLS;
+      setCellWidth(cellW);
+    });
+
+    observer.observe(gridRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     const onMouseMove = (e) => {
       if (isDraggingRef.current) {
         setMousePos({ x: e.clientX, y: e.clientY });
-        // Usa o canto sup-esq do ghost para calcular a célula de origem
         const cell = getOriginCellFromGhost(e.clientX, e.clientY);
         setHoverCell(cell);
       }
@@ -312,7 +325,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         setDragOffset({ x: 0, y: 0 });
         setHoverCell(null);
         document.body.classList.remove('is-dragging');
-        // Posiciona o card onde o ghost estava, não onde o mouse estava
         const cell = getOriginCellFromGhost(e.clientX, e.clientY);
         if (cell) setCardMovelPos(cell);
       }
@@ -490,11 +502,9 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   onMouseDown={e => e.stopPropagation()}
                   style={{
                     ...styles.cardFieldsGrid,
-                    // Largura fixa = 1 célula do grid (mesmo cálculo do ghost)
-                    // Altura fixa = suficiente para os 7 campos em 2 colunas
-                    width:     `calc((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS})`,
-                    minWidth:  `calc((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS})`,
-                    maxWidth:  `calc((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS})`,
+                    width:     cellWidth > 0 ? `${cellWidth}px` : 'auto',
+                    minWidth:  cellWidth > 0 ? `${cellWidth}px` : 'auto',
+                    maxWidth:  cellWidth > 0 ? `${cellWidth}px` : 'auto',
                     height:    `${CELL_H * 4 + GAP * 3}px`,
                     minHeight: `${CELL_H * 4 + GAP * 3}px`,
                     maxHeight: `${CELL_H * 4 + GAP * 3}px`,
@@ -600,7 +610,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 height: `${ghostSize.h}px`,
                 pointerEvents: 'none',
                 zIndex: 9999,
-                opacity: 0.6,
+                opacity: 0.8,
                 cursor: 'grabbing',
                 boxShadow: '0 12px 32px rgba(232, 213, 240, 0.35)',
                 transition: 'none',
@@ -1474,4 +1484,3 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
-
