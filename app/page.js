@@ -492,11 +492,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   onMouseDown={e => e.stopPropagation()}
                   style={{
                     ...styles.cardFieldsGrid,
-                    // Largura fixa = 1 célula do grid (mesmo cálculo do ghost)
-                    // Altura fixa = suficiente para os 7 campos em 2 colunas
-                    width:     `calc((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS})`,
-                    minWidth:  `calc((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS})`,
-                    maxWidth:  `calc((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS})`,
+                    // 1. Adiciona o gap dinâmico para alinhar com o grid principal
+                    gap: `${GAP}px`, 
+                    // 2. Multiplica o cálculo da largura por 2 e soma o GAP para abranger 2 colunas perfeitamente (tornando cada box interna 1x1)
+                    width:     `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px)`,
+                    minWidth:  `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px)`,
+                    maxWidth:  `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px)`,
                     height:    `${CELL_H * 4 + GAP * 3}px`,
                     minHeight: `${CELL_H * 4 + GAP * 3}px`,
                     maxHeight: `${CELL_H * 4 + GAP * 3}px`,
