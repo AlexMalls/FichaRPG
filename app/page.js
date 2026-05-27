@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-static';
+
 import React, { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -629,12 +631,14 @@ const EnnoisSite = () => {
   const [selectedFicha, setSelectedFicha] = useState(null);
 
   useEffect(() => {
+    let unsubscribe;
+
     const carregarFichas = async () => {
       try {
         setLoading(true);
         const q = query(collection(db, 'fichas'), orderBy('dataCriacao', 'desc'));
         
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        unsubscribe = onSnapshot(q, (snapshot) => {
           const fichasData = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
@@ -643,7 +647,6 @@ const EnnoisSite = () => {
           setLoading(false);
         });
 
-        return unsubscribe;
       } catch (error) {
         console.error('Erro ao carregar fichas:', error);
         setLoading(false);
@@ -652,6 +655,10 @@ const EnnoisSite = () => {
     };
 
     carregarFichas();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -738,7 +745,7 @@ const EnnoisSite = () => {
           ficha={selectedFicha} 
           onBack={() => setSelectedFicha(null)}
           onUpdate={() => {
-            mostrarToast('Ficha atualizada com sucesso!', 'success');
+            mostrarToast('Ficha updated com sucesso!', 'success');
           }}
           selectedFicha={selectedFicha}
           setSelectedFicha={setSelectedFicha}
