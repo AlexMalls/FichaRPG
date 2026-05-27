@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-static';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   collection, 
   addDoc, 
@@ -199,6 +199,9 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [ghostSize, setGhostSize]           = useState({ w: 180, h: 100 });
   const [hoverCell, setHoverCell]           = useState(null);
 
+  // ── largura calculada de uma célula do grid (atualizada via ResizeObserver) ──
+  const [cellWidth, setCellWidth] = useState(null);
+
   // Campos editáveis da ficha — inicializados com os dados vindos do Firestore
   const [fichaData, setFichaData] = useState({
     nome:         ficha?.nome         || '',
@@ -221,6 +224,31 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const dragOffsetRef  = React.useRef({ x: 0, y: 0 });
   const ghostSizeRef   = React.useRef({ w: 180, h: 100 });
   const cardSizeRef    = React.useRef(ficha?.cardSize || { cols: 2, rows: 4 });
+
+  // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
+  const calcCellWidth = useCallback((containerWidth) => {
+    const available = containerWidth - GRID_PADDING * 2;
+    return (available - GAP * (GRID_COLS - 1)) / GRID_COLS;
+  }, []);
+
+  // ── ResizeObserver: atualiza cellWidth sempre que o grid mudar de tamanho ──
+  useEffect(() => {
+    if (!gridRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = entry.contentRect.width;
+        setCellWidth(calcCellWidth(w));
+      }
+    });
+
+    observer.observe(gridRef.current);
+
+    // leitura inicial
+    setCellWidth(calcCellWidth(gridRef.current.getBoundingClientRect().width));
+
+    return () => observer.disconnect();
+  }, [calcCellWidth]);
 
   const espacos = [];
   let id = 1;
@@ -378,6 +406,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     );
   };
 
+  // ── largura de cada campo interno: mesma de uma célula do grid, menos 20px (10px cada lado) ──
+  const fieldBoxWidth = cellWidth != null ? cellWidth - 20 : null;
+
+  // ── número de colunas de campos que cabem no card (igual ao span de colunas do card) ──
+  const fieldCols = activeSize.cols;
+
   return (
     <div style={{ ...styles.detailContainer, userSelect: 'none' }}>
       <div style={styles.detailContent}>
@@ -387,7 +421,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           <div style={styles.sidebarContent}>
             <button onClick={onBack} style={styles.backButtonSidebar}>← Voltar</button>
 
-            {/* Botão de salvar inserido para persistência de dados */}
             <button 
               onClick={() => onUpdate(ficha.id, { ...fichaData, cardMovelPos, cardSize })} 
               style={{
@@ -489,17 +522,22 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
                 </div>
 
-                {/* ✨ BOX DE CAMPOS TOTALMENTE FIXA E RÍGIDA ✨ */}
+                {/* ✨ CAMPOS ALINHADOS COM O GRID ✨ */}
                 <div
                   onMouseDown={e => e.stopPropagation()}
                   style={{
-                    ...styles.cardFieldsGrid,
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)', 
-                    gridTemplateRows: `repeat(4, 66px)`, // Altura dos blocos rigidamente fixada
-                    gap: `8px`, 
+                    // Uma coluna por coluna do grid que o card ocupa
+                    gridTemplateColumns: fieldBoxWidth != null
+                      ? `repeat(${fieldCols}, ${fieldBoxWidth}px)`
+                      : `repeat(${fieldCols}, 1fr)`,
+                    // Alinha a grade de campos com a grade do grid:
+                    // 10px de margem interna (metade dos 20px de folga por célula)
+                    gap: `${GAP}px`,
+                    padding: `6px 10px 4px 10px`,
                     width: '100%',
-                    maxWidth: '340px', // Trava a caixa lateralmente para que nunca estique além disso
+                    boxSizing: 'border-box',
+                    alignContent: 'start',
                   }}
                 >
                   {[
@@ -515,7 +553,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                       <span style={styles.cardFieldLabel}>{label}</span>
                       <input
                         className="card-field-input"
-                        style={styles.cardFieldInput}
+                        style={{
+                          ...styles.cardFieldInput,
+                          // largura exata = célula do grid − 20px, ou 100% como fallback
+                          width: fieldBoxWidth != null ? `${fieldBoxWidth}px` : '100%',
+                          boxSizing: 'border-box',
+                        }}
                         value={fichaData[campo]}
                         onChange={e => handleFieldChange(campo, e.target.value)}
                         placeholder="—"
@@ -1329,11 +1372,11 @@ const styles = {
   // ── Campos editáveis dentro do card ──
   cardFieldsGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '6px',
-    padding: '6px 4px 4px 4px',
-    alignContent: 'start',
+    gap: `${GAP}px`,
+    padding: `6px 10px 4px 10px`,
+    width: '100%',
     boxSizing: 'border-box',
+    alignContent: 'start',
   },
   cardFieldBox: {
     display: 'flex',
@@ -1356,7 +1399,6 @@ const styles = {
     fontSize: '0.72rem',
     padding: '3px 6px',
     outline: 'none',
-    width: '100%',
     boxSizing: 'border-box',
     transition: 'border-color 0.2s',
   },
