@@ -1,5 +1,8 @@
 export const metadata = {
   title: "FichaRPG",
+  icons: {
+    icon: '/images/logo.png',
+  },
 };
 
 export default function RootLayout({ children }) {
@@ -11,3 +14,4 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
+
