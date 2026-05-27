@@ -1,13 +1,6 @@
 export const metadata = {
-  title: "FichaRPG",
+  title: 'Fichas RPG',
+  icons: {
+    icon: '/images/logo.png',
+  },
 };
-
-export default function RootLayout({ children }) {
-  return (
-    <html lang="pt-BR">
-      <body style={{ margin: 0, padding: 0 }}>
-        {children}
-      </body>
-    </html>
-  );
-}
