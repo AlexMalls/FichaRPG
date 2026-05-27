@@ -187,7 +187,7 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 );
 
 // ============ COMPONENTE DE INPUT PARA O GRID INTERNO ============
-const GridInputField = ({ label, value, onChange, placeholder }) => (
+const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown }) => (
   <div style={{
     display: 'flex',
     flexDirection: 'column',
@@ -195,7 +195,18 @@ const GridInputField = ({ label, value, onChange, placeholder }) => (
     height: '100%',
     gap: '2px',
   }}>
-    <label style={styles.gridFieldLabel}>
+    <label 
+      style={{
+        ...styles.gridFieldLabel,
+        cursor: 'grab',
+        userSelect: 'none',
+        padding: '1px 2px',
+        borderRadius: '2px',
+        transition: 'all 0.15s ease',
+      }}
+      onMouseDown={onLabelMouseDown}
+      title="Arraste para reorganizar"
+    >
       {label}
     </label>
     <input
@@ -233,6 +244,21 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     xp: ficha?.xp || '',
   });
 
+  // ── Posições dos campos dentro do grid interno ──
+  const [fieldPositions, setFieldPositions] = useState(ficha?.fieldPositions || {
+    nome: { col: 1, row: 1 },
+    classe: { col: 2, row: 1 },
+    nivel: { col: 3, row: 1 },
+    alinhamento: { col: 1, row: 2 },
+    idade: { col: 2, row: 2 },
+    xp: { col: 3, row: 2 },
+  });
+
+  // ── Estado de drag dos campos individuais ──
+  const [draggingField, setDraggingField] = useState(null);
+  const [fieldMousePos, setFieldMousePos] = useState({ x: 0, y: 0 });
+  const [fieldHoverCell, setFieldHoverCell] = useState(null);
+  
   // ── largura calculada de uma célula do grid (atualizada via ResizeObserver) ──
   const [cellWidth, setCellWidth] = useState(null);
 
@@ -243,6 +269,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const dragOffsetRef  = React.useRef({ x: 0, y: 0 });
   const ghostSizeRef   = React.useRef({ w: 180, h: 100 });
   const cardSizeRef    = React.useRef(ficha?.cardSize || { cols: 2, rows: 4 });
+  
+  // ── Refs para drag dos campos ──
+  const isDraggingFieldRef = React.useRef(false);
+  const cardGridRef = React.useRef(null);
+  const draggingFieldKeyRef = React.useRef(null);
 
   // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
   const calcCellWidth = useCallback((containerWidth) => {
@@ -291,6 +322,27 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     return { col, row };
   };
 
+  // ── Obter célula do grid INTERNO do card (para campos) ──
+  const getCellFromPointInCardGrid = (x, y) => {
+    if (!cardGridRef.current) return null;
+    const rect = cardGridRef.current.getBoundingClientRect();
+    const relX = x - rect.left;
+    const relY = y - rect.top;
+    if (relX < 0 || relY < 0) return null;
+    
+    // Calcular com base na largura disponível
+    const availableWidth = rect.width;
+    const cellW = cellWidth || (availableWidth / activeSize.cols);
+    const gapX = 14; // gap do grid interno é 14px
+    const gapY = 8;  // rowGap do grid interno é 8px
+    
+    const col = Math.floor(relX / (cellW + gapX)) + 1;
+    const row = Math.floor(relY / (CELL_H + gapY)) + 1;
+    
+    if (col < 1 || col > activeSize.cols || row < 1 || row > activeSize.rows) return null;
+    return { col, row };
+  };
+
   const getOriginCellFromGhost = (mouseX, mouseY) => {
     if (!gridRef.current) return null;
     const rect = gridRef.current.getBoundingClientRect();
@@ -331,6 +383,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           setResizePreview({ cols, rows });
         }
       }
+      if (isDraggingFieldRef.current) {
+        setFieldMousePos({ x: e.clientX, y: e.clientY });
+        const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
+        setFieldHoverCell(cell);
+      }
     };
 
     const onMouseUp = (e) => {
@@ -355,6 +412,21 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         const cell = getOriginCellFromGhost(e.clientX, e.clientY);
         if (cell) setCardMovelPos(cell);
       }
+      if (isDraggingFieldRef.current) {
+        isDraggingFieldRef.current = false;
+        const fieldKey = draggingFieldKeyRef.current;
+        const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
+        if (cell && fieldKey) {
+          setFieldPositions(prev => ({
+            ...prev,
+            [fieldKey]: { col: cell.col, row: cell.row }
+          }));
+        }
+        setDraggingField(null);
+        setFieldMousePos({ x: 0, y: 0 });
+        setFieldHoverCell(null);
+        document.body.classList.remove('is-dragging-field');
+      }
     };
 
     window.addEventListener('mousemove', onMouseMove);
@@ -363,7 +435,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [resizePreview]);
+  }, [resizePreview, activeSize.cols, activeSize.rows, cellWidth]);
 
   const handleCardMouseDown = (e) => {
     e.preventDefault();
@@ -403,6 +475,18 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     document.body.classList.add('is-resizing');
   };
 
+  const handleFieldMouseDown = (fieldKey) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!cardGridRef.current) return;
+    
+    setDraggingField(fieldKey);
+    isDraggingFieldRef.current = true;
+    draggingFieldKeyRef.current = fieldKey;
+    setFieldMousePos({ x: e.clientX, y: e.clientY });
+    document.body.classList.add('is-dragging-field');
+  };
+
   const activeSize = isResizing && resizePreview ? resizePreview : cardSize;
 
   const cardOccupies = (col, row) => {
@@ -428,16 +512,19 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── Mapeamento de campos para posições no grid interno ──
   const mapearCamposGrid = () => {
     const campos = [
-      { col: 1, row: 1, key: 'nome', label: 'Nome', placeholder: 'Digite o nome' },
-      { col: 2, row: 1, key: 'classe', label: 'Classe', placeholder: 'Ex: Mago' },
-      { col: 1, row: 2, key: 'nivel', label: 'Nível', placeholder: 'Ex: 1' },
-      { col: 2, row: 2, key: 'alinhamento', label: 'Alinhamento', placeholder: 'Ex: Neutro' },
-      { col: 1, row: 3, key: 'idade', label: 'Idade', placeholder: 'Ex: 25' },
-      { col: 2, row: 3, key: 'xp', label: 'XP', placeholder: 'Ex: 0' },
+      { key: 'nome', label: 'Nome', placeholder: 'Digite o nome' },
+      { key: 'classe', label: 'Classe', placeholder: 'Ex: Mago' },
+      { key: 'nivel', label: 'Nível', placeholder: 'Ex: 1' },
+      { key: 'alinhamento', label: 'Alinhamento', placeholder: 'Ex: Neutro' },
+      { key: 'idade', label: 'Idade', placeholder: 'Ex: 25' },
+      { key: 'xp', label: 'XP', placeholder: 'Ex: 0' },
     ];
     
-    // Filtrar apenas campos que cabem no grid
-    return campos.filter(campo => campo.col <= activeSize.cols && campo.row <= activeSize.rows);
+    // Adicionar posição do fieldPositions
+    return campos.map(campo => ({
+      ...campo,
+      ...(fieldPositions[campo.key] || { col: 1, row: 1 })
+    })).filter(campo => campo.col <= activeSize.cols && campo.row <= activeSize.rows);
   };
 
   const handleFieldChange = (key, value) => {
@@ -465,7 +552,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             <button onClick={onBack} style={styles.backButtonSidebar}>← Voltar</button>
 
             <button 
-              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize, ...fichaData })} 
+              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize, fieldPositions, ...fichaData })} 
               style={{
                 ...styles.buttonPrimary,
                 marginTop: '0.5rem',
@@ -568,6 +655,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
                 {/* ✨ GRID INTERNO COM CAMPOS ✨ */}
                 <div
+                  ref={cardGridRef}
                   onMouseDown={e => e.stopPropagation()}
                   style={{
                     display: 'grid',
@@ -588,40 +676,69 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     margin: '0px',
                     flex: 1,
                     overflow: 'hidden',
+                    position: 'relative',
                   }}
                 >
                   {/* Renderizar campos nos espaços corretos */}
-                  {mapearCamposGrid().map((campo) => (
+                  {mapearCamposGrid().map((campo) => {
+                    const fieldPos = fieldPositions[campo.key];
+                    const isCurrentlyDragging = draggingField === campo.key;
+                    
+                    return (
+                      <div
+                        key={campo.key}
+                        style={{
+                          gridColumn: fieldPos.col,
+                          gridRow: fieldPos.row,
+                          height: `${CELL_H}px`,
+                          margin: '0px',
+                          marginTop: '6px',
+                          borderRadius: '0.5rem',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          opacity: isCurrentlyDragging ? 0.4 : 1,
+                          transition: 'opacity 0.15s ease, grid-column 0.15s ease, grid-row 0.15s ease',
+                        }}
+                      >
+                        <GridInputField
+                          label={campo.label}
+                          value={fichaData[campo.key]}
+                          onChange={(e) => handleFieldChange(campo.key, e.target.value)}
+                          placeholder={campo.placeholder}
+                          onLabelMouseDown={handleFieldMouseDown(campo.key)}
+                        />
+                      </div>
+                    );
+                  })}
+
+                  {/* Preview das células enquanto arrasta um campo */}
+                  {draggingField && fieldHoverCell && (
                     <div
-                      key={campo.key}
                       style={{
-                        gridColumn: campo.col,
-                        gridRow: campo.row,
+                        gridColumn: fieldHoverCell.col,
+                        gridRow: fieldHoverCell.row,
                         height: `${CELL_H}px`,
                         margin: '0px',
                         marginTop: '6px',
                         borderRadius: '0.5rem',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        flexDirection: 'column',
+                        background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)',
+                        border: '2px solid rgba(251, 191, 36, 0.85)',
+                        boxShadow: '0 0 16px rgba(251, 191, 36, 0.35)',
+                        transition: 'all 0.1s ease',
+                        pointerEvents: 'none',
                       }}
-                    >
-                      <GridInputField
-                        label={campo.label}
-                        value={fichaData[campo.key]}
-                        onChange={(e) => handleFieldChange(campo.key, e.target.value)}
-                        placeholder={campo.placeholder}
-                      />
-                    </div>
-                  ))}
+                    />
+                  )}
 
                   {/* Preencher espaços vazios com placeholders */}
                   {Array.from({ length: activeSize.cols * activeSize.rows }).map((_, idx) => {
                     const col = (idx % activeSize.cols) + 1;
                     const row = Math.floor(idx / activeSize.cols) + 1;
                     const temCampo = mapearCamposGrid().some(c => c.col === col && c.row === row);
+                    const isPreview = fieldHoverCell && fieldHoverCell.col === col && fieldHoverCell.row === row;
                     
-                    if (temCampo) return null;
+                    if (temCampo || isPreview) return null;
                     
                     return (
                       <div
@@ -644,6 +761,36 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     );
                   })}
                 </div>
+
+                {/* Campo fantasma durante drag */}
+                {draggingField && (
+                  <div
+                    style={{
+                      position: 'fixed',
+                      left: `${fieldMousePos.x - 60}px`,
+                      top: `${fieldMousePos.y - 10}px`,
+                      width: '120px',
+                      height: '30px',
+                      background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.25) 0%, rgba(107, 91, 149, 0.25) 100%)',
+                      border: '1px solid rgba(232, 213, 240, 0.4)',
+                      borderRadius: '0.5rem',
+                      padding: '4px 8px',
+                      pointerEvents: 'none',
+                      zIndex: 10000,
+                      opacity: 0.7,
+                      cursor: 'grabbing',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '11px',
+                      color: '#E8D5F0',
+                      fontWeight: '600',
+                      boxShadow: '0 8px 24px rgba(232, 213, 240, 0.25)',
+                    }}
+                  >
+                    {mapearCamposGrid().find(c => c.key === draggingField)?.label}
+                  </div>
+                )}
 
                 <button
                   onMouseDown={e => e.stopPropagation()}
@@ -1571,6 +1718,11 @@ const globalStyles = `
   body.is-resizing,
   body.is-resizing * {
     cursor: nwse-resize !important;
+  }
+
+  body.is-dragging-field,
+  body.is-dragging-field * {
+    cursor: grabbing !important;
   }
 
   .card-field-input:focus {
