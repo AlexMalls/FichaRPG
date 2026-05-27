@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-static';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   collection, 
   addDoc, 
@@ -20,8 +20,8 @@ import { db } from '../firebase';
 // ============================================================
 const GRID_CONFIG = {
   colunas:       6,    // número de colunas
-  linhas:        11,   // número de linhas
-  alturaCell:    80,   // altura de cada célula em px
+  linhas:        44,   // número de linhas
+  alturaCell:    40,   // altura de cada célula em px
   gap:           8,    // espaçamento entre células em px
   paddingGrid:   16,   // padding interno do grid em px
 };
@@ -189,8 +189,8 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 // ============ PÁGINA DE VISUALIZAÇÃO DA FICHA ============
 
 const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
-  const [cardMovelPos, setCardMovelPos]     = useState(null);
-  const [cardSize, setCardSize]             = useState({ cols: 1, rows: 1 });
+  const [cardMovelPos, setCardMovelPos]     = useState(ficha?.cardMovelPos || null);
+  const [cardSize, setCardSize]             = useState(ficha?.cardSize || { cols: 2, rows: 4 });
   const [isDraggingCard, setIsDraggingCard] = useState(false);
   const [dragOffset, setDragOffset]         = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
@@ -199,31 +199,41 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [ghostSize, setGhostSize]           = useState({ w: 180, h: 100 });
   const [hoverCell, setHoverCell]           = useState(null);
 
-  // Campos editáveis da ficha — inicializados com os dados vindos do Firestore
-  const [fichaData, setFichaData] = useState({
-    nome:         ficha?.nome         || '',
-    classe:       ficha?.classe       || '',
-    nivel:        ficha?.nivel        || '',
-    raca:         ficha?.raca         || '',
-    antecedente:  ficha?.antecedente  || '',
-    alinhamento:  ficha?.alinhamento  || '',
-    xp:           ficha?.xp           || '',
-  });
-
-  const handleFieldChange = (campo, valor) => {
-    setFichaData(prev => ({ ...prev, [campo]: valor }));
-  };
-
-
+  // ── largura calculada de uma célula do grid (atualizada via ResizeObserver) ──
+  const [cellWidth, setCellWidth] = useState(null);
 
   const isDraggingRef  = React.useRef(false);
   const isResizingRef  = React.useRef(false);
   const gridRef        = React.useRef(null);
   const resizeOrigin   = React.useRef({ col: 1, row: 1 });
-  // Refs para ter os valores de offset/size atuais dentro dos closures do useEffect
   const dragOffsetRef  = React.useRef({ x: 0, y: 0 });
   const ghostSizeRef   = React.useRef({ w: 180, h: 100 });
-  const cardSizeRef    = React.useRef({ cols: 1, rows: 1 });
+  const cardSizeRef    = React.useRef(ficha?.cardSize || { cols: 2, rows: 4 });
+
+  // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
+  const calcCellWidth = useCallback((containerWidth) => {
+    const available = containerWidth - GRID_PADDING * 2;
+    return (available - GAP * (GRID_COLS - 1)) / GRID_COLS;
+  }, []);
+
+  // ── ResizeObserver: atualiza cellWidth sempre que o grid mudar de tamanho ──
+  useEffect(() => {
+    if (!gridRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = entry.contentRect.width;
+        setCellWidth(calcCellWidth(w));
+      }
+    });
+
+    observer.observe(gridRef.current);
+
+    // leitura inicial
+    setCellWidth(calcCellWidth(gridRef.current.getBoundingClientRect().width));
+
+    return () => observer.disconnect();
+  }, [calcCellWidth]);
 
   const espacos = [];
   let id = 1;
@@ -247,19 +257,15 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     return { col, row };
   };
 
-  // Calcula a célula de origem (canto sup-esq) baseado no canto sup-esq do fantasma,
-  // que é o mouse menos o dragOffset. Clampeia para que o card caiba no grid.
   const getOriginCellFromGhost = (mouseX, mouseY) => {
     if (!gridRef.current) return null;
     const rect = gridRef.current.getBoundingClientRect();
     const offset = dragOffsetRef.current;
     const size   = cardSizeRef.current;
 
-    // Canto superior esquerdo do ghost no espaço da página
     const ghostLeft = mouseX - offset.x;
     const ghostTop  = mouseY - offset.y;
 
-    // Converte para coordenadas relativas ao grid (descontando padding)
     const relX = ghostLeft - rect.left - GRID_PADDING;
     const relY = ghostTop  - rect.top  - GRID_PADDING;
 
@@ -269,7 +275,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     let col = Math.round(relX / (cellW + GAP)) + 1;
     let row = Math.round(relY / (CELL_H + GAP)) + 1;
 
-    // Clampeia para que o card inteiro caiba dentro do grid
     col = Math.max(1, Math.min(col, GRID_COLS - size.cols + 1));
     row = Math.max(1, Math.min(row, GRID_ROWS - size.rows + 1));
 
@@ -280,7 +285,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     const onMouseMove = (e) => {
       if (isDraggingRef.current) {
         setMousePos({ x: e.clientX, y: e.clientY });
-        // Usa o canto sup-esq do ghost para calcular a célula de origem
         const cell = getOriginCellFromGhost(e.clientX, e.clientY);
         setHoverCell(cell);
       }
@@ -314,7 +318,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         setDragOffset({ x: 0, y: 0 });
         setHoverCell(null);
         document.body.classList.remove('is-dragging');
-        // Posiciona o card onde o ghost estava, não onde o mouse estava
         const cell = getOriginCellFromGhost(e.clientX, e.clientY);
         if (cell) setCardMovelPos(cell);
       }
@@ -328,7 +331,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     };
   }, [resizePreview]);
 
-  // FIX: cálculo correto do tamanho do ghost + sync de refs para closures
   const handleCardMouseDown = (e) => {
     e.preventDefault();
     if (gridRef.current) {
@@ -340,7 +342,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       const offset = { x: ghostW / 2, y: ghostH / 2 };
       setDragOffset(offset);
       setGhostSize({ w: ghostW, h: ghostH });
-      // Sincroniza refs para os closures do useEffect terem os valores atuais
       dragOffsetRef.current = offset;
       ghostSizeRef.current  = { w: ghostW, h: ghostH };
     } else {
@@ -380,7 +381,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     );
   };
 
-  // FIX 2: checa se a célula está na área de preview de drop
   const isDropPreview = (col, row) => {
     if (!isDraggingCard || !hoverCell) return false;
     return (
@@ -391,6 +391,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     );
   };
 
+  // ── ALINHAMENTO PERFEITO COM O GRID ──
+  // Cada campo deve ter exatamente a mesma largura de uma célula do grid
+  // O gap entre campos deve ser igual ao gap do grid
+  // Padding interno do card deve ser 0 para perfeito alinhamento
+  
+  const fieldCols = activeSize.cols;
+  const fieldBoxWidth = cellWidth; // Mesma largura exata da célula do grid
+
   return (
     <div style={{ ...styles.detailContainer, userSelect: 'none' }}>
       <div style={styles.detailContent}>
@@ -400,12 +408,26 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           <div style={styles.sidebarContent}>
             <button onClick={onBack} style={styles.backButtonSidebar}>← Voltar</button>
 
+            <button 
+              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize })} 
+              style={{
+                ...styles.buttonPrimary,
+                marginTop: '0.5rem',
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              💾 Salvar Alterações
+            </button>
+
             <div style={{ fontSize: '0.85rem', color: theme.colors.text, opacity: 0.6, marginTop: '1rem', padding: '1rem', borderTop: `1px solid ${theme.colors.borderLight}` }}>
               <p style={{ margin: '0 0 0.5rem 0' }}>💡 Dica:</p>
               <p style={{ margin: 0 }}>Arraste para o grid e redimensione pelo canto ↘</p>
             </div>
 
-            {/* Card no sidebar — só aparece se ainda não foi colocado no grid */}
             {!cardMovelPos && (
             <div
               onMouseDown={handleCardMouseDown}
@@ -444,7 +466,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     ...styles.spaceCard,
                     gridColumn: espaco.col,
                     gridRow: espaco.row,
-                    // FIX 2: estilos de highlight amarelo no preview, senão comportamento original
                     ...(ocupado
                       ? { opacity: 0 }
                       : preview
@@ -474,9 +495,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   ...styles.cardMovel,
                   gridColumn: `${cardMovelPos.col} / span ${activeSize.cols}`,
                   gridRow:    `${cardMovelPos.row} / span ${activeSize.rows}`,
-
-                  margin: '6px',
-                  
+                  margin: '0px',
                   cursor: isDraggingCard ? 'grabbing' : 'grab',
                   opacity: isDraggingCard ? 0.6 : 1,
                   transition: 'opacity 0.15s ease, grid-column 0.1s ease, grid-row 0.1s ease',
@@ -484,63 +503,63 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   zIndex: 2,
                   flexDirection: 'column',
                   display: 'flex',
+                  padding: '0px',
                 }}
               >
                 <div style={styles.cardMovelHeader}>
                   <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
                 </div>
 
-                {/* Campos editáveis — tamanho fixo, não redimensiona com o card */}
+                {/* ✨ GRID INTERNO ESPELHO DO GRID EXTERNO ✨ */}
                 <div
                   onMouseDown={e => e.stopPropagation()}
                   style={{
-                    ...styles.cardFieldsGrid,
                     display: 'grid',
-                    
-                    // 1. Forçamos o grid interno a criar 2 colunas e 4 linhas onde cada caixinha 
-                    // tem exatamente o tamanho da célula de trás MENOS 12px (6px de cada lado de respiro)
-                    gridTemplateColumns: `repeat(2, calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) - 12px))`,
-                    gridTemplateRows:    `repeat(4, ${CELL_H - 12}px)`,
-                    
-                    // 2. Aumentamos o GAP interno em 12px para compensar o encolhimento das caixas,
-                    // mantendo elas perfeitamente centralizadas sobre o meio das células de trás
-                    gap: `${GAP + 12}px`, 
-                
-                    // 3. Subtraímos 12px da largura e altura totais para casar perfeitamente com a margem do card pai
-                    width:      `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px - 12px)`,
-                    minWidth:   `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px - 12px)`,
-                    maxWidth:   `calc(((100vw - 280px - ${GRID_PADDING * 2 + 64}px - ${GAP * (GRID_COLS - 1)}px) / ${GRID_COLS}) * 2 + ${GAP}px - 12px)`,
-                    height:    `${CELL_H * 4 + GAP * 3 - 12}px`,
-                    minHeight: `${CELL_H * 4 + GAP * 3 - 12}px`,
-                    maxHeight: `${CELL_H * 4 + GAP * 3 - 12}px`,
-                    
+                    // Mesmo número de colunas do card
+                    gridTemplateColumns: fieldBoxWidth != null
+                      ? `repeat(${activeSize.cols}, ${fieldBoxWidth}px)`
+                      : `repeat(${activeSize.cols}, 1fr)`,
+                    // Mesmo número de linhas do card (sem altura fixa, deixa crescer)
+                    gridTemplateRows: `repeat(${activeSize.rows}, ${CELL_H}px)`,
+                    // Gap idêntico ao grid externo
+                    gap: `14px`,
+                    rowGap: '8px',
+                    // Sem padding para perfeito alinhamento
+                    padding: '0px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    alignContent: 'start',
+                    margin: '0px',
+                    flex: 1,
                     overflow: 'hidden',
-                    flexShrink: 0,
                   }}
                 >
-                  {[
-                    { campo: 'nome',        label: 'Nome'        },
-                    { campo: 'classe',      label: 'Classe'      },
-                    { campo: 'nivel',       label: 'Nível'       },
-                    { campo: 'raca',        label: 'Raça'        },
-                    { campo: 'antecedente', label: 'Antecedente' },
-                    { campo: 'alinhamento', label: 'Alinhamento' },
-                    { campo: 'xp',          label: 'XP'          },
-                  ].map(({ campo, label }) => (
-                    <div key={campo} style={styles.cardFieldBox}>
-                      <span style={styles.cardFieldLabel}>{label}</span>
-                      <input
-                        className="card-field-input"
-                        style={styles.cardFieldInput}
-                        value={fichaData[campo]}
-                        onChange={e => handleFieldChange(campo, e.target.value)}
-                        placeholder="—"
-                      />
-                    </div>
-                  ))}
+                  {/* Gerar células do grid interno */}
+                  {Array.from({ length: activeSize.cols * activeSize.rows }).map((_, idx) => {
+                    const col = (idx % activeSize.cols) + 1;
+                    const row = Math.floor(idx / activeSize.cols) + 1;
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          ...styles.spaceCard,
+                          height: `${CELL_H}px`,
+                          gridColumn: col,
+                          gridRow: row,
+                          margin: '0px',
+                          marginTop: '6px',
+                          borderRadius: '0.5rem',
+                          opacity: 0.6,
+                        }}
+                      >
+                        <div style={styles.spaceCardContent}>
+                          {col}:{row}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {/* Botão X — remove o card do grid e devolve ao sidebar */}
                 <button
                   onMouseDown={e => e.stopPropagation()}
                   onClick={() => setCardMovelPos(null)}
@@ -573,7 +592,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   ✕
                 </button>
 
-                {/* Handle de resize — canto inferior direito */}
                 <div
                   onMouseDown={handleResizeMouseDown}
                   title="Redimensionar"
@@ -604,16 +622,16 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             )}
           </div>
 
-          {/* Card fantasma seguindo o mouse */}
+          {/* Card fantasma */}
           {isDraggingCard && (
             <div
               style={{
                 ...styles.cardMovel,
                 position: 'fixed',
-                left: `${mousePos.x - dragOffset.x + 6}px`,  // +6px para deslocar o recuo da esquerda
-                top:  `${mousePos.y - dragOffset.y + 6}px`,  // +6px para deslocar o recuo do topo
-                width:  `${ghostSize.w - 12}px`,             // Subtrai 6px da esquerda + 6px da direita
-                height: `${ghostSize.h - 12}px`,             // Subtrai 6px do topo + 6px do fundo
+                left: `${mousePos.x - dragOffset.x + 6}px`,
+                top:  `${mousePos.y - dragOffset.y + 6}px`,
+                width:  `${ghostSize.w - 12}px`,
+                height: `${ghostSize.h - 12}px`,
                 pointerEvents: 'none',
                 zIndex: 9999,
                 opacity: 0.6,
@@ -710,6 +728,8 @@ const EnnoisSite = () => {
         antecedente: '',
         alinhamento: '',
         xp: '',
+        cardMovelPos: null,
+        cardSize: { cols: 2, rows: 4 }
       });
 
       mostrarToast(`Ficha "${nomeFicha}" criada com sucesso!`, 'success');
@@ -758,8 +778,19 @@ const EnnoisSite = () => {
         <FichaDetailView 
           ficha={selectedFicha} 
           onBack={() => setSelectedFicha(null)}
-          onUpdate={() => {
-            mostrarToast('Ficha updated com sucesso!', 'success');
+          onUpdate={async (fichaId, dadosAtualizados) => {
+            try {
+              const fichaRef = doc(db, 'fichas', fichaId);
+              await updateDoc(fichaRef, {
+                ...dadosAtualizados,
+                ultimaEdicao: new Date()
+              });
+              setSelectedFicha(prev => ({ ...prev, ...dadosAtualizados }));
+              mostrarToast('Ficha atualizada com sucesso!', 'success');
+            } catch (error) {
+              console.error('Erro ao salvar ficha:', error);
+              mostrarToast('Erro ao salvar ficha', 'error');
+            }
           }}
           selectedFicha={selectedFicha}
           setSelectedFicha={setSelectedFicha}
@@ -1287,29 +1318,32 @@ const styles = {
   // ============ CARD MÓVEL ============
   cardMovel: {
     background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.25) 0%, rgba(107, 91, 149, 0.25) 100%)',
-    border: `2px solid rgba(232, 213, 240, 0.6)`,
+    border: 'none',
     borderRadius: '0.75rem',
     display: 'flex',
     flexDirection: 'column',
-    padding: '0.75rem',
     cursor: 'grab',
     transition: 'all 0.3s ease',
     position: 'relative',
     overflow: 'hidden',
-    boxShadow: '0 4px 12px rgba(232, 213, 240, 0.15)',
+    boxShadow: '0 0 0 2px rgba(232, 213, 240, 0.2), 0 4px 12px rgba(232, 213, 240, 0.15)',
     userSelect: 'none',
+    padding: '0px',
+    margin: '0px',
   },
   cardMovelHeader: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: '0.5rem',
-    paddingBottom: '0.5rem',
+    height: `${CELL_H}px`,
+    flexShrink: 0,
+    padding: '0px',
+    margin: '0px',
     borderBottom: `1px solid rgba(232, 213, 240, 0.3)`,
   },
   cardMovelTitle: {
     margin: 0,
-    fontSize: '0.8rem',
+    fontSize: '0.7rem',
     fontWeight: '600',
     color: '#E8D5F0',
     textAlign: 'center',
@@ -1334,36 +1368,12 @@ const styles = {
   // ── Campos editáveis dentro do card ──
   cardFieldsGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '6px',
-    padding: '6px 4px 4px 4px',
-    alignContent: 'start',
-    boxSizing: 'border-box',
-  },
-  cardFieldBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-  },
-  cardFieldLabel: {
-    fontSize: '0.6rem',
-    fontWeight: '700',
-    color: 'rgba(232, 213, 240, 0.5)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    paddingLeft: '4px',
-  },
-  cardFieldInput: {
-    background: 'rgba(0, 0, 0, 0.3)',
-    border: '1px solid rgba(232, 213, 240, 0.15)',
-    borderRadius: '4px',
-    color: '#E8D5F0',
-    fontSize: '0.72rem',
-    padding: '3px 6px',
-    outline: 'none',
+    gap: `${GAP}px`,
+    padding: `0px`,
     width: '100%',
     boxSizing: 'border-box',
-    transition: 'border-color 0.2s',
+    alignContent: 'start',
+    margin: '0px',
   },
 
   // ============ CARD EXPANDÍVEL ============
@@ -1495,3 +1505,4 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
+
