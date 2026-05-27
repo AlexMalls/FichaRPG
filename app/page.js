@@ -20,8 +20,8 @@ import { db } from '../firebase';
 // ============================================================
 const GRID_CONFIG = {
   colunas:       6,    // número de colunas
-  linhas:        11,   // número de linhas
-  alturaCell:    80,   // altura de cada célula em px
+  linhas:        44,   // número de linhas
+  alturaCell:    40,   // altura de cada célula em px
   gap:           8,    // espaçamento entre células em px
   paddingGrid:   16,   // padding interno do grid em px
 };
