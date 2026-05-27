@@ -218,7 +218,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const isResizingRef  = React.useRef(false);
   const gridRef        = React.useRef(null);
   const resizeOrigin   = React.useRef({ col: 1, row: 1 });
-  // Refs para ter os valores de offset/size atuais dentro dos closures do useEffect
   const dragOffsetRef  = React.useRef({ x: 0, y: 0 });
   const ghostSizeRef   = React.useRef({ w: 180, h: 100 });
   const cardSizeRef    = React.useRef(ficha?.cardSize || { cols: 2, rows: 4 });
@@ -490,18 +489,17 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
                 </div>
 
-                {/* ✨ Correção aplicada AQUI: Flex 1 invés de matemática rígida de tamanhos ✨ */}
+                {/* ✨ BOX DE CAMPOS TOTALMENTE FIXA E RÍGIDA ✨ */}
                 <div
                   onMouseDown={e => e.stopPropagation()}
                   style={{
                     ...styles.cardFieldsGrid,
                     display: 'grid',
-                    gridTemplateColumns: '1fr 1fr', 
-                    gridTemplateRows: 'repeat(4, 1fr)',
-                    gap: `${GAP}px`, 
+                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                    gridTemplateRows: `repeat(4, 66px)`, // Altura dos blocos rigidamente fixada
+                    gap: `8px`, 
                     width: '100%',
-                    flex: 1, 
-                    overflow: 'hidden',
+                    maxWidth: '340px', // Trava a caixa lateralmente para que nunca estique além disso
                   }}
                 >
                   {[
