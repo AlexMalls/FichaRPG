@@ -524,7 +524,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     // Gap idêntico ao grid externo
                     gap: `14px`,
                     rowGap: '4px',
-                    marginTop: '4px',
+                    marginTop: '8px',
                     // Sem padding para perfeito alinhamento
                     padding: '0px',
                     width: '100%',
