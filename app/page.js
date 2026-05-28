@@ -1925,6 +1925,7 @@ const styles = {
     width: '100%',
     height: '100%',
     padding: '4px 8px',
+    marginTop: '-5px',
     background: 'rgba(0, 0, 0, 0.4)',
     border: `1px solid rgba(232, 213, 240, 0.3)`,
     borderRadius: '3px',
