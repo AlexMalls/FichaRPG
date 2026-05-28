@@ -293,7 +293,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const isResizingFieldRef = React.useRef(false);
   const resizingFieldKeyRef = React.useRef(null);
   const fieldResizeOrigin = React.useRef({ col: 1, row: 1 });
-
+  const fieldResizePreviewRef = React.useRef(null);
+  
   // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
   const calcCellWidth = useCallback((containerWidth) => {
     const available = containerWidth - GRID_PADDING * 2;
@@ -393,6 +394,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         const cell = getOriginCellFromGhost(e.clientX, e.clientY);
         setHoverCell(cell);
       }
+      
       if (isResizingRef.current) {
         const cell = getCellFromPoint(e.clientX, e.clientY);
         if (cell) {
@@ -402,57 +404,49 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           setResizePreview({ cols, rows });
         }
       }
+      
       if (isDraggingFieldRef.current) {
         setFieldMousePos({ x: e.clientX, y: e.clientY });
         const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
         setFieldHoverCell(cell);
       }
+      
       if (isResizingFieldRef.current) {
         const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
         if (cell) {
           const origin = fieldResizeOrigin.current;
-          const cols = Math.max(1, Math.min(cell.col - origin.col + 1, activeSize.cols - origin.col + 1));
-          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, activeSize.rows - origin.row + 1));
-          setFieldResizePreview({ cols, rows });
+          const currentSize = cardSizeRef.current;
+          
+          const cols = Math.max(1, Math.min(cell.col - origin.col + 1, currentSize.cols - origin.col + 1));
+          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, currentSize.rows - origin.row + 1));
+          
+          const newPreview = { cols, rows };
+          setFieldResizePreview(newPreview); 
+          fieldResizePreviewRef.current = newPreview; // Ref atualizada corretamente
         }
       }
     };
 
     const onMouseUp = (e) => {
+      // 1. Redimensionamento do Card Principal
       if (isResizingRef.current) {
         isResizingRef.current = false;
         setIsResizing(false);
         document.body.classList.remove('is-resizing');
+        
         if (resizePreview) {
           const newSize = { ...resizePreview };
-        
           setCardSize(newSize);
           cardSizeRef.current = newSize;
-        
-          // força persistência imediata
-          setResizePreview(newSize);
-        }
-        if (isResizingRef.current) {
-          isResizingRef.current = false;
-          setIsResizing(false);
-        
-          if (resizePreview) {
-            const newSize = { ...resizePreview };
-        
-            setCardSize(newSize);
-            cardSizeRef.current = newSize;
-        
-            // limpa no próximo frame
-            requestAnimationFrame(() => {
-              setResizePreview(null);
-            });
-          }
-        
-          document.body.classList.remove('is-resizing');
-          return;
+          
+          requestAnimationFrame(() => {
+            setResizePreview(null);
+          });
         }
         return;
       }
+      
+      // 2. Arrasto do Card Principal
       if (isDraggingRef.current) {
         isDraggingRef.current = false;
         setIsDraggingCard(false);
@@ -462,7 +456,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         document.body.classList.remove('is-dragging');
         const cell = getOriginCellFromGhost(e.clientX, e.clientY);
         if (cell) setCardMovelPos(cell);
+        return;
       }
+      
+      // 3. Arrasto do Campo (Textbox Interna)
       if (isDraggingFieldRef.current) {
         isDraggingFieldRef.current = false;
         const fieldKey = draggingFieldKeyRef.current;
@@ -477,29 +474,39 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         setFieldMousePos({ x: 0, y: 0 });
         setFieldHoverCell(null);
         document.body.classList.remove('is-dragging-field');
+        return;
       }
+      
+      // 4. Redimensionamento do Campo (Textbox Interna) - AQUI ESTÁ A CORREÇÃO PRINCIPAL
       if (isResizingFieldRef.current) {
         isResizingFieldRef.current = false;
+        
         const fieldKey = resizingFieldKeyRef.current;
-        if (fieldResizePreview && fieldKey) {
+        const finalPreview = fieldResizePreviewRef.current; // Puxando o valor da Ref em vez do State!
+        
+        if (finalPreview && fieldKey) {
           setFieldSizes(prev => ({
             ...prev,
-            [fieldKey]: { cols: fieldResizePreview.cols, rows: fieldResizePreview.rows }
+            [fieldKey]: { cols: finalPreview.cols, rows: finalPreview.rows }
           }));
         }
+        
         setResizingField(null);
         setFieldResizePreview(null);
+        fieldResizePreviewRef.current = null; // Limpando a ref
         document.body.classList.remove('is-resizing-field');
+        return;
       }
     };
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
+    
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [resizePreview, cellWidth]);
+  }, [resizePreview, cellWidth]); // Não precisa colocar fieldResizePreview aqui graças à Ref
 
   const handleCardMouseDown = (e) => {
     e.preventDefault();
