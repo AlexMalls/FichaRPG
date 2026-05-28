@@ -424,10 +424,33 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         setIsResizing(false);
         document.body.classList.remove('is-resizing');
         if (resizePreview) {
-          setCardSize(resizePreview);
-          cardSizeRef.current = { ...resizePreview };
+          const newSize = { ...resizePreview };
+        
+          setCardSize(newSize);
+          cardSizeRef.current = newSize;
+        
+          // força persistência imediata
+          setResizePreview(newSize);
         }
-        setResizePreview(null);
+        if (isResizingRef.current) {
+          isResizingRef.current = false;
+          setIsResizing(false);
+        
+          if (resizePreview) {
+            const newSize = { ...resizePreview };
+        
+            setCardSize(newSize);
+            cardSizeRef.current = newSize;
+        
+            // limpa no próximo frame
+            requestAnimationFrame(() => {
+              setResizePreview(null);
+            });
+          }
+        
+          document.body.classList.remove('is-resizing');
+          return;
+        }
         return;
       }
       if (isDraggingRef.current) {
@@ -544,7 +567,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     document.body.classList.add('is-resizing-field');
   };
 
-  const activeSize = isResizing && resizePreview ? resizePreview : cardSize;
+  const activeSize = resizePreview || cardSize;
 
   const cardOccupies = (col, row) => {
     if (!cardMovelPos) return false;
