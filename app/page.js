@@ -314,7 +314,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   // ── Seleção por área (marquee) ──
   const [selectedFields, setSelectedFields]     = useState([]);
-  const [marquee, setMarquee]                   = useState(null); // { x, y, w, h } em px relativo ao cardGridRef
+  const selectedFieldsRef                       = React.useRef([]);
+  const [marquee, setMarquee]                   = useState(null);
   const isMarqueeRef                            = React.useRef(false);
   const marqueeStartRef                         = React.useRef({ x: 0, y: 0 });
   const lastClickTimeRef                        = React.useRef(0);
@@ -354,8 +355,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   }, [fieldPositions]);
 
   useEffect(() => {
-    fieldSizesRef.current = fieldSizes;
-  }, [fieldSizes]);
+    selectedFieldsRef.current = selectedFields;
+  }, [selectedFields]);
   
   // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
   const calcCellWidth = useCallback((containerWidth) => {
@@ -663,7 +664,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const deltaRow = finalHover.row - startPos.row;
 
           // Campos a mover: se o campo arrastado está na seleção, move todos; senão move só ele
-          const currentSelected = selectedFields;
+          const currentSelected = selectedFieldsRef.current;
           const isGroupDrag = currentSelected.includes(fieldKey) && currentSelected.length > 1;
 
           setFieldPositions(prev => {
