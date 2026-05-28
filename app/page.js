@@ -1208,8 +1208,45 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     );
                   })}
 
-                  {/* Preview das células enquanto arrasta um campo */}
-                  {draggingField && fieldHoverCell && (
+                  {/* Preview das células enquanto arrasta um campo — GRUPO */}
+                  {draggingField && fieldHoverCell && selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1 &&
+                    selectedFieldsRef.current.map(key => {
+                      const pos = fieldPositions[key];
+                      const size = fieldSizes[key] || { cols: 1, rows: 1 };
+                      const startPos = dragStartPosRef.current;
+                      const deltaCol = startPos ? fieldHoverCell.col - startPos.col : 0;
+                      const deltaRow = startPos ? fieldHoverCell.row - startPos.row : 0;
+                      const previewCol = pos.col + deltaCol;
+                      const previewRow = pos.row + deltaRow;
+                      return (
+                        <div
+                          key={`group-preview-${key}`}
+                          style={{
+                            gridColumn: `${previewCol} / span ${size.cols}`,
+                            gridRow: `${previewRow} / span ${size.rows}`,
+                            margin: '0px',
+                            marginTop: '6px',
+                            borderRadius: '0.5rem',
+                            boxSizing: 'border-box',
+                            background: fieldHoverCell.isValid !== false
+                              ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)'
+                              : 'linear-gradient(135deg, rgba(248, 113, 113, 0.18) 0%, rgba(220, 38, 38, 0.18) 100%)',
+                            border: fieldHoverCell.isValid !== false
+                              ? '2px solid rgba(251, 191, 36, 0.85)'
+                              : '2px solid rgba(248, 113, 113, 0.85)',
+                            boxShadow: fieldHoverCell.isValid !== false
+                              ? '0 0 16px rgba(251, 191, 36, 0.35)'
+                              : '0 0 16px rgba(248, 113, 113, 0.35)',
+                            transition: 'all 0.1s ease',
+                            pointerEvents: 'none',
+                            zIndex: 5,
+                          }}
+                        />
+                      );
+                    })
+                  }
+                  {/* Preview das células enquanto arrasta um campo — INDIVIDUAL */}
+                  {draggingField && fieldHoverCell && !(selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1) && (
                     <div
                       style={{
                         gridColumn: `${fieldHoverCell.col} / span ${fieldSizes[draggingField]?.cols || 1}`,
@@ -1221,21 +1258,15 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           : 'calc(100% - 6px)',
                         borderRadius: '0.5rem',
                         boxSizing: 'border-box',
-                        
-                        // 🔽 SE VÁLIDO = LARANJA | SE INVÁLIDO = VERMELHO 🔽
                         background: fieldHoverCell.isValid !== false
                           ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)' 
                           : 'linear-gradient(135deg, rgba(248, 113, 113, 0.18) 0%, rgba(220, 38, 38, 0.18) 100%)',
-                        
                         border: fieldHoverCell.isValid !== false
                           ? '2px solid rgba(251, 191, 36, 0.85)' 
                           : '2px solid rgba(248, 113, 113, 0.85)',
-                        
                         boxShadow: fieldHoverCell.isValid !== false
                           ? '0 0 16px rgba(251, 191, 36, 0.35)' 
                           : '0 0 16px rgba(248, 113, 113, 0.35)',
-                        // 🔼 -------------------------------------------- 🔼
-
                         transition: 'all 0.1s ease',
                         pointerEvents: 'none',
                         zIndex: 5,
@@ -1347,7 +1378,51 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 </div>
 
                 {/* Campo fantasma durante drag */}
-                {draggingField && (
+                {draggingField && selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1 && selectedFieldsRef.current.map(key => {
+                  const campo = mapearCamposGrid().find(c => c.key === key);
+                  if (!campo) return null;
+                  const pos = fieldPositions[key];
+                  const size = fieldSizes[key] || { cols: 1, rows: 1 };
+                  const startPos = dragStartPosRef.current;
+                  const hoverPos = fieldHoverCellRef.current;
+                  const deltaCol = (startPos && hoverPos) ? hoverPos.col - startPos.col : 0;
+                  const deltaRow = (startPos && hoverPos) ? hoverPos.row - startPos.row : 0;
+                  const rect = cardGridRef.current?.getBoundingClientRect();
+                  const cw = cellWidth || (rect ? rect.width / activeSize.cols : 80);
+                  const gapX = 14, gapY = 8;
+                  const newCol = pos.col + deltaCol;
+                  const newRow = pos.row + deltaRow;
+                  const ghostLeft = rect ? rect.left + (newCol - 1) * (cw + gapX) : fieldMousePos.x;
+                  const ghostTop  = rect ? rect.top  + (newRow - 1) * (CELL_H + gapY) + 6 : fieldMousePos.y;
+                  return (
+                    <div
+                      key={key}
+                      style={{
+                        position: 'fixed',
+                        left: `${ghostLeft}px`,
+                        top: `${ghostTop}px`,
+                        width: `${cw * size.cols + gapX * (size.cols - 1)}px`,
+                        height: `${CELL_H * size.rows + gapY * (size.rows - 1)}px`,
+                        background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.25) 0%, rgba(107, 91, 149, 0.25) 100%)',
+                        border: '1px solid rgba(232, 213, 240, 0.4)',
+                        borderRadius: '0.5rem',
+                        pointerEvents: 'none',
+                        zIndex: 10000,
+                        opacity: 0.7,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '11px',
+                        color: '#E8D5F0',
+                        fontWeight: '600',
+                        boxShadow: '0 8px 24px rgba(232, 213, 240, 0.25)',
+                      }}
+                    >
+                      {campo.label}
+                    </div>
+                  );
+                })}
+                {draggingField && !(selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1) && (
                   <div
                     style={{
                       position: 'fixed',
