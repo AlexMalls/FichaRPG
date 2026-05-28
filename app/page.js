@@ -336,6 +336,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const cardGridRef = React.useRef(null);
   const draggingFieldKeyRef = React.useRef(null);
   
+  const dragStartPosRef = React.useRef(null); // posição inicial do campo arrastado
   // ── Refs para resize dos campos ──
   const isResizingFieldRef = React.useRef(false);
   const resizingFieldKeyRef = React.useRef(null);
@@ -654,15 +655,86 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       if (isDraggingFieldRef.current) {
         isDraggingFieldRef.current = false;
         const fieldKey = draggingFieldKeyRef.current;
-        const finalHover = fieldHoverCellRef.current; // Puxa do Ref
-        
-        // ── SÓ SALVA A POSIÇÃO SE isValid FOR TRUE ──
-        if (finalHover && fieldKey && finalHover.isValid) {
-          setFieldPositions(prev => ({
-            ...prev,
-            [fieldKey]: { col: finalHover.col, row: finalHover.row }
-          }));
+        const finalHover = fieldHoverCellRef.current;
+        const startPos = dragStartPosRef.current;
+
+        if (finalHover && fieldKey && finalHover.isValid && startPos) {
+          const deltaCol = finalHover.col - startPos.col;
+          const deltaRow = finalHover.row - startPos.row;
+
+          // Campos a mover: se o campo arrastado está na seleção, move todos; senão move só ele
+          const currentSelected = selectedFields;
+          const isGroupDrag = currentSelected.includes(fieldKey) && currentSelected.length > 1;
+
+          setFieldPositions(prev => {
+            if (!isGroupDrag) {
+              // Movimento individual
+              return { ...prev, [fieldKey]: { col: finalHover.col, row: finalHover.row } };
+            }
+
+            // ── Movimento em grupo: aplica delta em todos os selecionados ──
+            const next = { ...prev };
+            const currentCardSize = cardSizeRef.current;
+
+            // Primeiro verifica se algum campo sairia dos limites
+            const algumForaDoLimite = currentSelected.some(key => {
+              const pos = prev[key];
+              const size = fieldSizesRef.current[key] || { cols: 1, rows: 1 };
+              if (!pos) return false;
+              const newCol = pos.col + deltaCol;
+              const newRow = pos.row + deltaRow;
+              return (
+                newCol < 1 ||
+                newRow < 1 ||
+                newCol + size.cols - 1 > currentCardSize.cols ||
+                newRow + size.rows - 1 > currentCardSize.rows - 1
+              );
+            });
+
+            if (algumForaDoLimite) return prev; // Aborta se qualquer um sairia do limite
+
+            // Verifica colisão com campos NÃO selecionados
+            const naoSelecionados = Object.keys(prev).filter(k => !currentSelected.includes(k));
+            const algumColide = currentSelected.some(keyA => {
+              const posA = prev[keyA];
+              const sizeA = fieldSizesRef.current[keyA] || { cols: 1, rows: 1 };
+              if (!posA) return false;
+              const newColA = posA.col + deltaCol;
+              const newRowA = posA.row + deltaRow;
+
+              return naoSelecionados.some(keyB => {
+                const posB = prev[keyB];
+                const sizeB = fieldSizesRef.current[keyB] || { cols: 1, rows: 1 };
+                if (!posB) return false;
+                return (
+                  newColA <= posB.col + sizeB.cols - 1 &&
+                  newColA + sizeA.cols - 1 >= posB.col &&
+                  newRowA <= posB.row + sizeB.rows - 1 &&
+                  newRowA + sizeA.rows - 1 >= posB.row
+                );
+              });
+            });
+
+            if (algumColide) return prev; // Aborta se houver colisão
+
+            // Aplica o delta em todos
+            currentSelected.forEach(key => {
+              const pos = prev[key];
+              if (pos) next[key] = { col: pos.col + deltaCol, row: pos.row + deltaRow };
+            });
+
+            return next;
+          });
         }
+
+        setDraggingField(null);
+        setFieldMousePos({ x: 0, y: 0 });
+        setFieldHoverCell(null);
+        fieldHoverCellRef.current = null;
+        dragStartPosRef.current = null;
+        document.body.classList.remove('is-dragging-field');
+        return;
+      }
         
         setDraggingField(null);
         setFieldMousePos({ x: 0, y: 0 });
@@ -771,6 +843,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     draggingFieldKeyRef.current = fieldKey;
     setFieldMousePos({ x: e.clientX, y: e.clientY });
     document.body.classList.add('is-dragging-field');
+
+    // ── Registra posição inicial do campo arrastado (para calcular delta depois) ──
+    const startPos = fieldPositionsRef.current[fieldKey];
+    dragStartPosRef.current = startPos ? { ...startPos } : null;
   };
 
   // ── Inicia marquee com duplo clique + hold ──
