@@ -294,6 +294,19 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const resizingFieldKeyRef = React.useRef(null);
   const fieldResizeOrigin = React.useRef({ col: 1, row: 1 });
   const fieldResizePreviewRef = React.useRef(null);
+
+  // ── Refs para detecção de colisão ──
+  const fieldPositionsRef = React.useRef(fieldPositions);
+  const fieldSizesRef = React.useRef(fieldSizes);
+
+  // Mantém as Refs atualizadas com o state mais recente
+  useEffect(() => {
+    fieldPositionsRef.current = fieldPositions;
+  }, [fieldPositions]);
+
+  useEffect(() => {
+    fieldSizesRef.current = fieldSizes;
+  }, [fieldSizes]);
   
   // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
   const calcCellWidth = useCallback((containerWidth) => {
@@ -416,13 +429,41 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         if (cell) {
           const origin = fieldResizeOrigin.current;
           const currentSize = cardSizeRef.current;
+          const resizingKey = resizingFieldKeyRef.current;
           
           const cols = Math.max(1, Math.min(cell.col - origin.col + 1, currentSize.cols - origin.col + 1));
           const rows = Math.max(1, Math.min(cell.row - origin.row + 1, currentSize.rows - origin.row + 1));
           
-          const newPreview = { cols, rows };
+          // ── NOVA LÓGICA DE DETECÇÃO DE COLISÃO (AGORA NO LUGAR CERTO: MOUSEMOVE) ──
+          let hasOverlap = false;
+          const positions = fieldPositionsRef.current;
+          const sizes = fieldSizesRef.current;
+
+          const leftA = origin.col;
+          const rightA = origin.col + cols - 1;
+          const topA = origin.row;
+          const bottomA = origin.row + rows - 1;
+
+          for (const key in positions) {
+            if (key === resizingKey) continue; 
+            
+            const posB = positions[key];
+            const sizeB = sizes[key] || { cols: 1, rows: 1 };
+            
+            const leftB = posB.col;
+            const rightB = posB.col + sizeB.cols - 1;
+            const topB = posB.row;
+            const bottomB = posB.row + sizeB.rows - 1;
+            
+            if (leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB) {
+              hasOverlap = true;
+              break; 
+            }
+          }
+
+          const newPreview = { cols, rows, isValid: !hasOverlap };
           setFieldResizePreview(newPreview); 
-          fieldResizePreviewRef.current = newPreview; // Ref atualizada corretamente
+          fieldResizePreviewRef.current = newPreview;
         }
       }
     };
@@ -477,14 +518,15 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         return;
       }
       
-      // 4. Redimensionamento do Campo (Textbox Interna) - AQUI ESTÁ A CORREÇÃO PRINCIPAL
+      // 4. Redimensionamento do Campo (Textbox Interna)
       if (isResizingFieldRef.current) {
         isResizingFieldRef.current = false;
         
         const fieldKey = resizingFieldKeyRef.current;
-        const finalPreview = fieldResizePreviewRef.current; // Puxando o valor da Ref em vez do State!
+        const finalPreview = fieldResizePreviewRef.current;
         
-        if (finalPreview && fieldKey) {
+        // ── SÓ SALVA SE FOR VÁLIDO (NÃO HOUVER COLISÃO) ──
+        if (finalPreview && fieldKey && finalPreview.isValid) {
           setFieldSizes(prev => ({
             ...prev,
             [fieldKey]: { cols: finalPreview.cols, rows: finalPreview.rows }
@@ -493,7 +535,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         
         setResizingField(null);
         setFieldResizePreview(null);
-        fieldResizePreviewRef.current = null; // Limpando a ref
+        fieldResizePreviewRef.current = null;
         document.body.classList.remove('is-resizing-field');
         return;
       }
@@ -506,7 +548,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [resizePreview, cellWidth]); // Não precisa colocar fieldResizePreview aqui graças à Ref
+  }, [resizePreview, cellWidth]);
 
   const handleCardMouseDown = (e) => {
     e.preventDefault();
@@ -852,18 +894,29 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   )}
 
                   {/* Preview das células enquanto redimensiona um campo */}
+                  {/* Preview das células enquanto redimensiona um campo */}
                   {resizingField && fieldResizePreview && (
                     <div
                       style={{
                         gridColumn: `${fieldPositions[resizingField].col} / span ${fieldResizePreview.cols}`,
                         gridRow: `${fieldPositions[resizingField].row} / span ${fieldResizePreview.rows}`,
                         margin: '0px',
-                        marginTop: '23px',
-                        borderRadius: '0.3rem',
-                        height: 'calc(100% - 6px - 12px)',
-                        background: 'linear-gradient(135deg, rgba(74, 222, 128, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%)',
-                        border: '2px solid rgba(74, 222, 128, 0.85)',
-                        boxShadow: '0 0 16px rgba(74, 222, 128, 0.35)',
+                        marginTop: '6px',
+                        height: 'calc(100% - 6px + 4px)',
+                        borderRadius: '0.5rem',
+                        
+                        background: fieldResizePreview.isValid 
+                          ? 'linear-gradient(135deg, rgba(74, 222, 128, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%)' 
+                          : 'linear-gradient(135deg, rgba(248, 113, 113, 0.18) 0%, rgba(220, 38, 38, 0.18) 100%)',
+                        
+                        border: fieldResizePreview.isValid 
+                          ? '2px solid rgba(74, 222, 128, 0.85)' 
+                          : '2px solid rgba(248, 113, 113, 0.85)',
+                        
+                        boxShadow: fieldResizePreview.isValid 
+                          ? '0 0 16px rgba(74, 222, 128, 0.35)' 
+                          : '0 0 16px rgba(248, 113, 113, 0.35)',
+        
                         transition: 'all 0.1s ease',
                         pointerEvents: 'none',
                         zIndex: 5,
