@@ -640,13 +640,16 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     
-    // Guardamos o tamanho inicial (da sidebar) para iniciar a animação
-    setGhostSize({ w: rect.width, h: rect.height });
-    
-    // O offset agora é fixo no topo-esquerdo (0,0 em relação ao card) para ser profissional
+    // O offset 0,0 garante que o card não salte e fique alinhado ao cursor
     const offset = { x: 0, y: 0 }; 
     setDragOffset(offset);
     dragOffsetRef.current = offset;
+
+    // Mantemos o tamanho do fantasma igual ao tamanho real do elemento clicado (o da sidebar)
+    const ghostW = rect.width;
+    const ghostH = rect.height;
+    setGhostSize({ w: ghostW, h: ghostH });
+    ghostSizeRef.current = { w: ghostW, h: ghostH };
 
     cardSizeRef.current = { ...cardSize };
     setMousePos({ x: e.clientX, y: e.clientY });
@@ -1195,30 +1198,19 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               style={{
                 ...styles.cardMovel,
                 position: 'fixed',
-                // A posição segue o mouse, mas alinhada ao topo-esquerdo do card
                 left: `${mousePos.x}px`,
                 top:  `${mousePos.y}px`,
-                
-                // O fantasma começa pequeno (da sidebar) e expande para o tamanho real
-                // activeSize aqui refere-se ao tamanho real (ex: 2x3)
+                // Expande suavemente da sidebar (ghostSize) para o tamanho final do grid
                 width:  `${Math.max(ghostSize.w, (cellWidth * activeSize.cols) + (GAP * (activeSize.cols - 1)))}px`,
                 height: `${Math.max(ghostSize.h, (CELL_H * activeSize.rows) + (GAP * (activeSize.rows - 1)))}px`,
-                
                 pointerEvents: 'none',
                 zIndex: 9999,
                 opacity: 0.8,
                 cursor: 'grabbing',
                 boxShadow: '0 20px 40px rgba(232, 213, 240, 0.4)',
-                
                 // A mágica da suavidade:
                 transition: 'width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
               }}
-            >
-              <div style={styles.cardMovelHeader}>
-                <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
-              </div>
-            </div>
-          )}
             >
               <div style={styles.cardMovelHeader}>
                 <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
