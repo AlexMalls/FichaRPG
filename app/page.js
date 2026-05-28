@@ -640,28 +640,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     
-    // O offset 0,0 garante que o card não salte e fique alinhado ao cursor
     const offset = { x: 0, y: 0 }; 
     setDragOffset(offset);
     dragOffsetRef.current = offset;
 
-    // Mantemos o tamanho do fantasma igual ao tamanho real do elemento clicado (o da sidebar)
-    const ghostW = rect.width;
-    const ghostH = rect.height;
-    setGhostSize({ w: ghostW, h: ghostH });
-    ghostSizeRef.current = { w: ghostW, h: ghostH };
-
-    cardSizeRef.current = { ...cardSize };
-    setMousePos({ x: e.clientX, y: e.clientY });
-    setIsDraggingCard(true);
-    isDraggingRef.current = true;
-    document.body.classList.add('is-dragging');
-  };
-    
-    setDragOffset(offset);
-    dragOffsetRef.current = offset;
-
-    // Mantemos o tamanho do fantasma igual ao tamanho real do elemento
     const ghostW = rect.width;
     const ghostH = rect.height;
     setGhostSize({ w: ghostW, h: ghostH });
@@ -1200,7 +1182,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 position: 'fixed',
                 left: `${mousePos.x}px`,
                 top:  `${mousePos.y}px`,
-                // Expande suavemente da sidebar (ghostSize) para o tamanho final do grid
                 width:  `${Math.max(ghostSize.w, (cellWidth * activeSize.cols) + (GAP * (activeSize.cols - 1)))}px`,
                 height: `${Math.max(ghostSize.h, (CELL_H * activeSize.rows) + (GAP * (activeSize.rows - 1)))}px`,
                 pointerEvents: 'none',
@@ -1208,7 +1189,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 opacity: 0.8,
                 cursor: 'grabbing',
                 boxShadow: '0 20px 40px rgba(232, 213, 240, 0.4)',
-                // A mágica da suavidade:
                 transition: 'width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
               }}
             >
