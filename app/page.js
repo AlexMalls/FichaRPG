@@ -610,7 +610,15 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     
     resizingFieldKeyRef.current = fieldKey;
     fieldResizeOrigin.current = { col: fieldPos.col, row: fieldPos.row };
-    setFieldResizePreview({ ...fieldSizes[fieldKey] });
+    
+    // ── CORREÇÃO: Forçar isValid: true no momento do clique inicial ──
+    const initialSize = fieldSizes[fieldKey] || { cols: 1, rows: 1 };
+    const initialPreview = { ...initialSize, isValid: true };
+    
+    setFieldResizePreview(initialPreview);
+    fieldResizePreviewRef.current = initialPreview; 
+    // ─────────────────────────────────────────────────────────────────
+    
     setResizingField(fieldKey);
     isResizingFieldRef.current = true;
     document.body.classList.add('is-resizing-field');
