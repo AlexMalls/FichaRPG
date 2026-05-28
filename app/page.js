@@ -886,17 +886,28 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   {draggingField && fieldHoverCell && (
                     <div
                       style={{
-                        gridColumn: fieldHoverCell.col,
-                        gridRow: fieldHoverCell.row,
-                        height: `${CELL_H}px`,
+                        // 🔽 AQUI ESTÁ A CORREÇÃO: Usar span com o tamanho real do campo 🔽
+                        gridColumn: `${fieldHoverCell.col} / span ${fieldSizes[draggingField]?.cols || 1}`,
+                        gridRow: `${fieldHoverCell.row} / span ${fieldSizes[draggingField]?.rows || 1}`,
+                        
                         margin: '0px',
                         marginTop: '6px',
+                        
+                        // 🔽 Aplicar a mesma lógica de altura perfeita que acabamos de criar 🔽
+                        height: (fieldSizes[draggingField]?.rows || 1) === 1 
+                          ? 'calc(100% - 6px + 4px)' 
+                          : 'calc(100% - 6px)',
+                        
                         borderRadius: '0.5rem',
+                        boxSizing: 'border-box', // Mantém a bordinha alinhada
+                        // 🔼 ------------------------------------------------------------- 🔼
+
                         background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)',
                         border: '2px solid rgba(251, 191, 36, 0.85)',
                         boxShadow: '0 0 16px rgba(251, 191, 36, 0.35)',
                         transition: 'all 0.1s ease',
                         pointerEvents: 'none',
+                        zIndex: 5,
                       }}
                     />
                   )}
