@@ -636,18 +636,39 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     };
   }, [resizePreview, cellWidth]);
 
-  const handleCardMouseDown = (e) => {
+  // ── Drag a partir da SIDEBAR ──
+  const handleCardMouseDownSidebar = (e) => {
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
-    
-    const offset = { x: 0, y: 0 }; 
+
+    const offset = { x: 0, y: 0 };
     setDragOffset(offset);
     dragOffsetRef.current = offset;
 
-    const ghostW = rect.width;
-    const ghostH = rect.height;
-    setGhostSize({ w: ghostW, h: ghostH });
-    ghostSizeRef.current = { w: ghostW, h: ghostH };
+    setGhostSize({ w: rect.width, h: rect.height });
+    ghostSizeRef.current = { w: rect.width, h: rect.height };
+
+    cardSizeRef.current = { ...cardSize };
+    setMousePos({ x: e.clientX, y: e.clientY });
+    setIsDraggingCard(true);
+    isDraggingRef.current = true;
+    document.body.classList.add('is-dragging');
+  };
+
+  // ── Drag a partir do GRID ──
+  const handleCardMouseDownGrid = (e) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    const offset = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+    setDragOffset(offset);
+    dragOffsetRef.current = offset;
+
+    setGhostSize({ w: rect.width, h: rect.height });
+    ghostSizeRef.current = { w: rect.width, h: rect.height };
 
     cardSizeRef.current = { ...cardSize };
     setMousePos({ x: e.clientX, y: e.clientY });
@@ -790,7 +811,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
             {!cardMovelPos && (
             <div
-              onMouseDown={handleCardMouseDown}
+              onMouseDown={handleCardMouseDownSidebar}
               style={{
                 ...styles.cardMovel,
                 marginTop: '1rem',
@@ -850,7 +871,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             {/* ✨ AQUI ESTÁ A MAGIA ✨ -> Card posicionado no grid (com as classes) */}
             {cardMovelPos && (
               <div
-                onMouseDown={handleCardMouseDown}
+                onMouseDown={handleCardMouseDownGrid}
                 className={`card-bounce-transition ${
                   cardOverdrag.right && cardOverdrag.bottom ? 'card-bounce-both' : 
                   cardOverdrag.right ? 'card-bounce-right' : 
@@ -1174,22 +1195,28 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             )}
           </div>
 
-          {/* Card fantasma com animação de expansão */}
+          {/* Card fantasma */}
           {isDraggingCard && (
             <div
               style={{
                 ...styles.cardMovel,
                 position: 'fixed',
-                left: `${mousePos.x}px`,
-                top:  `${mousePos.y}px`,
-                width:  `${Math.max(ghostSize.w, (cellWidth * activeSize.cols) + (GAP * (activeSize.cols - 1)))}px`,
-                height: `${Math.max(ghostSize.h, (CELL_H * activeSize.rows) + (GAP * (activeSize.rows - 1)))}px`,
+                left: `${mousePos.x - dragOffset.x}px`,
+                top:  `${mousePos.y - dragOffset.y}px`,
+                width: dragOffset.x === 0 && dragOffset.y === 0
+                  ? `${Math.max(ghostSize.w, (cellWidth * activeSize.cols) + (GAP * (activeSize.cols - 1)))}px`
+                  : `${ghostSize.w}px`,
+                height: dragOffset.x === 0 && dragOffset.y === 0
+                  ? `${Math.max(ghostSize.h, (CELL_H * activeSize.rows) + (GAP * (activeSize.rows - 1)))}px`
+                  : `${ghostSize.h}px`,
                 pointerEvents: 'none',
                 zIndex: 9999,
                 opacity: 0.8,
                 cursor: 'grabbing',
                 boxShadow: '0 20px 40px rgba(232, 213, 240, 0.4)',
-                transition: 'width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                transition: dragOffset.x === 0 && dragOffset.y === 0
+                  ? 'width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                  : 'none',
               }}
             >
               <div style={styles.cardMovelHeader}>
