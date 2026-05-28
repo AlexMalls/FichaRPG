@@ -873,6 +873,16 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     if (e.target.tagName === 'INPUT') return;
     if (e.target.tagName === 'LABEL') return;
 
+    // ── Desseleciona com 1 clique fora das boxes selecionadas ──
+    if (selectedFieldsRef.current.length > 0) {
+      const clickedField = e.target.closest('[data-field-key]');
+      const clickedKey = clickedField?.dataset?.fieldKey;
+      if (!clickedKey || !selectedFieldsRef.current.includes(clickedKey)) {
+        setSelectedFields([]);
+        selectedFieldsRef.current = [];
+      }
+    }
+
     const now = Date.now();
     const timeSinceLast = now - lastClickTimeRef.current;
     lastClickTimeRef.current = now;
@@ -1178,6 +1188,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     return (
                       <div
                         key={campo.key}
+                        data-field-key={campo.key}
                         style={{
                           gridColumn: `${fieldPos.col} / span ${activeFieldSize.cols}`,
                           gridRow: `${fieldPos.row} / span ${activeFieldSize.rows}`,
