@@ -311,6 +311,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── Estado de resize dos campos ──
   const [resizingField, setResizingField] = useState(null);
   const [fieldResizePreview, setFieldResizePreview] = useState(null);
+
+  // ── Seleção por área (marquee) ──
+  const [selectedFields, setSelectedFields]     = useState([]);
+  const [marquee, setMarquee]                   = useState(null); // { x, y, w, h } em px relativo ao cardGridRef
+  const isMarqueeRef                            = React.useRef(false);
+  const marqueeStartRef                         = React.useRef({ x: 0, y: 0 });
+  const lastClickTimeRef                        = React.useRef(0);
+  const holdTimerRef                            = React.useRef(null);
   
   // ── largura calculada de uma célula do grid (atualizada via ResizeObserver) ──
   const [cellWidth, setCellWidth] = useState(null);
@@ -442,6 +450,20 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   useEffect(() => {
     const onMouseMove = (e) => {
+      // ── Atualiza marquee ──
+      if (isMarqueeRef.current && cardGridRef.current) {
+        const rect = cardGridRef.current.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        const start = marqueeStartRef.current;
+        setMarquee({
+          x: start.x,
+          y: start.y,
+          w: currentX - start.x,
+          h: currentY - start.y,
+        });
+      }
+
       if (isDraggingRef.current) {
         setMousePos({ x: e.clientX, y: e.clientY });
         const cell = getOriginCellFromGhost(e.clientX, e.clientY);
@@ -592,6 +614,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     };
 
     const onMouseUp = (e) => {
+      // ── Finaliza marquee ──
+      if (isMarqueeRef.current) {
+        handleCardGridMouseUp();
+        return;
+      }
+
       // 1. Redimensionamento do Card Principal
       if (isResizingRef.current) {
         isResizingRef.current = false;
@@ -743,6 +771,71 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     draggingFieldKeyRef.current = fieldKey;
     setFieldMousePos({ x: e.clientX, y: e.clientY });
     document.body.classList.add('is-dragging-field');
+  };
+
+  // ── Inicia marquee com duplo clique + hold ──
+  const handleCardGridMouseDown = (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.target.tagName === 'LABEL') return;
+
+    const now = Date.now();
+    const timeSinceLast = now - lastClickTimeRef.current;
+    lastClickTimeRef.current = now;
+
+    if (timeSinceLast < 300) {
+      const rect = cardGridRef.current.getBoundingClientRect();
+      const startX = e.clientX - rect.left;
+      const startY = e.clientY - rect.top;
+
+      holdTimerRef.current = setTimeout(() => {
+        isMarqueeRef.current = true;
+        marqueeStartRef.current = { x: startX, y: startY };
+        setMarquee({ x: startX, y: startY, w: 0, h: 0 });
+        document.body.classList.add('is-marquee');
+      }, 100);
+    }
+  };
+
+  const handleCardGridMouseUp = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    if (!isMarqueeRef.current) return;
+    isMarqueeRef.current = false;
+    document.body.classList.remove('is-marquee');
+
+    // Calcular quais campos estão dentro da marquee
+    setMarquee(prev => {
+      if (!prev || !cardGridRef.current) return null;
+
+      const rect = cardGridRef.current.getBoundingClientRect();
+      const selLeft   = Math.min(prev.x, prev.x + prev.w);
+      const selRight  = Math.max(prev.x, prev.x + prev.w);
+      const selTop    = Math.min(prev.y, prev.y + prev.h);
+      const selBottom = Math.max(prev.y, prev.y + prev.h);
+
+      const campos = mapearCamposGrid();
+      const cw = cellWidth || (rect.width / activeSize.cols);
+      const gapX = 14, gapY = 8;
+
+      const selecionados = campos.filter(campo => {
+        const pos  = fieldPositionsRef.current[campo.key];
+        const size = fieldSizesRef.current[campo.key] || { cols: 1, rows: 1 };
+
+        const fieldLeft   = (pos.col - 1) * (cw + gapX);
+        const fieldTop    = (pos.row - 1) * (CELL_H + gapY) + 6;
+        const fieldRight  = fieldLeft + cw * size.cols + gapX * (size.cols - 1);
+        const fieldBottom = fieldTop  + CELL_H * size.rows + gapY * (size.rows - 1);
+
+        return fieldLeft < selRight && fieldRight > selLeft &&
+               fieldTop  < selBottom && fieldBottom > selTop;
+      });
+
+      setSelectedFields(selecionados.map(c => c.key));
+      return null;
+    });
   };
 
   const handleFieldResizeMouseDown = (fieldKey) => (e) => {
@@ -954,7 +1047,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 {/* GRID INTERNO COM CAMPOS */}
                 <div
                   ref={cardGridRef}
-                  onMouseDown={e => e.stopPropagation()}
+                  onMouseDown={(e) => { e.stopPropagation(); handleCardGridMouseDown(e); }}
                   style={{
                     display: 'grid',
                     // Mesmo número de colunas do card
@@ -985,6 +1078,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     const isCurrentlyResizing = resizingField === campo.key;
                     const activeFieldSize = isCurrentlyResizing && fieldResizePreview ? fieldResizePreview : fieldSize;
                     
+                    const isSelected = selectedFields.includes(campo.key);
+
                     return (
                       <div
                         key={campo.key}
@@ -998,9 +1093,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           display: 'flex',
                           flexDirection: 'column',
                           opacity: isCurrentlyDragging ? 0.4 : 1,
-                          transition: 'opacity 0.15s ease, grid-column 0.15s ease, grid-row 0.15s ease',
+                          transition: 'opacity 0.15s ease, outline 0.15s ease',
                           position: 'relative',
                           minHeight: `${CELL_H}px`,
+                          outline: isSelected ? '2px solid rgba(139, 92, 246, 0.9)' : 'none',
+                          boxShadow: isSelected ? '0 0 10px rgba(139, 92, 246, 0.4)' : 'none',
                         }}
                       >
                         <GridInputField
@@ -1105,6 +1202,25 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                         transition: 'all 0.1s ease',
                         pointerEvents: 'none',
                         zIndex: 5,
+                      }}
+                    />
+                  )}
+
+                  {/* Retângulo de seleção marquee */}
+                  {marquee && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left:   `${Math.min(marquee.x, marquee.x + marquee.w)}px`,
+                        top:    `${Math.min(marquee.y, marquee.y + marquee.h)}px`,
+                        width:  `${Math.abs(marquee.w)}px`,
+                        height: `${Math.abs(marquee.h)}px`,
+                        border: '2px dashed rgba(139, 92, 246, 0.9)',
+                        borderRadius: '4px',
+                        background: 'rgba(139, 92, 246, 0.08)',
+                        pointerEvents: 'none',
+                        zIndex: 20,
+                        boxShadow: '0 0 0 1px rgba(139, 92, 246, 0.2)',
                       }}
                     />
                   )}
@@ -2165,6 +2281,12 @@ const globalStyles = `
   .card-field-input:focus {
     border-color: rgba(232, 213, 240, 0.5) !important;
     background: rgba(0, 0, 0, 0.5) !important;
+  }
+
+  body.is-marquee,
+  body.is-marquee * {
+    cursor: crosshair !important;
+    user-select: none !important;
   }
 `;
 
