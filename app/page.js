@@ -860,6 +860,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                         margin: '0px',
                         marginTop: '6px',
                         borderRadius: '0.5rem',
+                        height: 'calc(100% - 6px + 4px)',
                         background: 'linear-gradient(135deg, rgba(74, 222, 128, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%)',
                         border: '2px solid rgba(74, 222, 128, 0.85)',
                         boxShadow: '0 0 16px rgba(74, 222, 128, 0.35)',
