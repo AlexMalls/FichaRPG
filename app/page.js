@@ -39,7 +39,7 @@ const GRID_PADDING = GRID_CONFIG.paddingGrid;
 // ⚙️  CONFIGURAÇÃO DO GRID INTERNO (dentro do CardMóvel)
 // ============================================================
 const GRID_INTERNO_CONFIG = {
-  opacidadeCelula:    0.3,   // opacidade das células internas (0.0 a 1.0)
+  opacidadeCelula:    0.08,   // opacidade das células internas (0.0 a 1.0)
   mostrarTextoCelula: false,  // true = mostra "1:2", false = esconde
 };
 // ============================================================
