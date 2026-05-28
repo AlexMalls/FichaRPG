@@ -294,6 +294,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const resizingFieldKeyRef = React.useRef(null);
   const fieldResizeOrigin = React.useRef({ col: 1, row: 1 });
   const fieldResizePreviewRef = React.useRef(null);
+  const fieldHoverCellRef = React.useRef(null);
 
   // ── Refs para detecção de colisão ──
   const fieldPositionsRef = React.useRef(fieldPositions);
@@ -418,12 +419,58 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         }
       }
       
+      // ── DETEÇÃO DE COLISÃO NO ARRASTO (NOVO) ──
       if (isDraggingFieldRef.current) {
         setFieldMousePos({ x: e.clientX, y: e.clientY });
         const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
-        setFieldHoverCell(cell);
+        
+        if (cell) {
+          const draggingKey = draggingFieldKeyRef.current;
+          const size = fieldSizesRef.current[draggingKey] || { cols: 1, rows: 1 };
+          const positions = fieldPositionsRef.current;
+          const sizes = fieldSizesRef.current;
+          const currentCardSize = cardSizeRef.current;
+          
+          let hasOverlap = false;
+
+          const leftA = cell.col;
+          const rightA = cell.col + size.cols - 1;
+          const topA = cell.row;
+          const bottomA = cell.row + size.rows - 1;
+
+          // 1. Bloquear se a caixa for arrastada para fora dos limites da janela (grid)
+          if (rightA > currentCardSize.cols || bottomA > currentCardSize.rows) {
+            hasOverlap = true;
+          } else {
+            // 2. Bloquear se bater noutra textbox
+            for (const key in positions) {
+              if (key === draggingKey) continue;
+              
+              const posB = positions[key];
+              const sizeB = sizes[key] || { cols: 1, rows: 1 };
+              
+              const leftB = posB.col;
+              const rightB = posB.col + sizeB.cols - 1;
+              const topB = posB.row;
+              const bottomB = posB.row + sizeB.rows - 1;
+              
+              if (leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB) {
+                hasOverlap = true;
+                break;
+              }
+            }
+          }
+
+          const newHoverCell = { ...cell, isValid: !hasOverlap };
+          setFieldHoverCell(newHoverCell);
+          fieldHoverCellRef.current = newHoverCell;
+        } else {
+          setFieldHoverCell(null);
+          fieldHoverCellRef.current = null;
+        }
       }
       
+      // ── DETEÇÃO DE COLISÃO NO REDIMENSIONAMENTO ──
       if (isResizingFieldRef.current) {
         const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
         if (cell) {
@@ -434,7 +481,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const cols = Math.max(1, Math.min(cell.col - origin.col + 1, currentSize.cols - origin.col + 1));
           const rows = Math.max(1, Math.min(cell.row - origin.row + 1, currentSize.rows - origin.row + 1));
           
-          // ── NOVA LÓGICA DE DETECÇÃO DE COLISÃO (AGORA NO LUGAR CERTO: MOUSEMOVE) ──
           let hasOverlap = false;
           const positions = fieldPositionsRef.current;
           const sizes = fieldSizesRef.current;
@@ -469,7 +515,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     };
 
     const onMouseUp = (e) => {
-      // 1. Redimensionamento do Card Principal
       if (isResizingRef.current) {
         isResizingRef.current = false;
         setIsResizing(false);
@@ -479,15 +524,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const newSize = { ...resizePreview };
           setCardSize(newSize);
           cardSizeRef.current = newSize;
-          
-          requestAnimationFrame(() => {
-            setResizePreview(null);
-          });
+          requestAnimationFrame(() => setResizePreview(null));
         }
         return;
       }
       
-      // 2. Arrasto do Card Principal
       if (isDraggingRef.current) {
         isDraggingRef.current = false;
         setIsDraggingCard(false);
@@ -500,32 +541,33 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         return;
       }
       
-      // 3. Arrasto do Campo (Textbox Interna)
+      // ── IMPEDIR SALVAMENTO NO ARRASTO (NOVO) ──
       if (isDraggingFieldRef.current) {
         isDraggingFieldRef.current = false;
         const fieldKey = draggingFieldKeyRef.current;
-        const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
-        if (cell && fieldKey) {
+        const finalHover = fieldHoverCellRef.current; // Puxa do Ref
+        
+        // ── SÓ SALVA A POSIÇÃO SE isValid FOR TRUE ──
+        if (finalHover && fieldKey && finalHover.isValid) {
           setFieldPositions(prev => ({
             ...prev,
-            [fieldKey]: { col: cell.col, row: cell.row }
+            [fieldKey]: { col: finalHover.col, row: finalHover.row }
           }));
         }
+        
         setDraggingField(null);
         setFieldMousePos({ x: 0, y: 0 });
         setFieldHoverCell(null);
+        fieldHoverCellRef.current = null; // Limpar a ref
         document.body.classList.remove('is-dragging-field');
         return;
       }
       
-      // 4. Redimensionamento do Campo (Textbox Interna)
       if (isResizingFieldRef.current) {
         isResizingFieldRef.current = false;
-        
         const fieldKey = resizingFieldKeyRef.current;
         const finalPreview = fieldResizePreviewRef.current;
         
-        // ── SÓ SALVA SE FOR VÁLIDO (NÃO HOUVER COLISÃO) ──
         if (finalPreview && fieldKey && finalPreview.isValid) {
           setFieldSizes(prev => ({
             ...prev,
@@ -886,25 +928,30 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   {draggingField && fieldHoverCell && (
                     <div
                       style={{
-                        // 🔽 AQUI ESTÁ A CORREÇÃO: Usar span com o tamanho real do campo 🔽
                         gridColumn: `${fieldHoverCell.col} / span ${fieldSizes[draggingField]?.cols || 1}`,
                         gridRow: `${fieldHoverCell.row} / span ${fieldSizes[draggingField]?.rows || 1}`,
-                        
                         margin: '0px',
                         marginTop: '6px',
-                        
-                        // 🔽 Aplicar a mesma lógica de altura perfeita que acabamos de criar 🔽
                         height: (fieldSizes[draggingField]?.rows || 1) === 1 
                           ? 'calc(100% - 6px + 4px)' 
                           : 'calc(100% - 6px)',
-                        
                         borderRadius: '0.5rem',
-                        boxSizing: 'border-box', // Mantém a bordinha alinhada
-                        // 🔼 ------------------------------------------------------------- 🔼
+                        boxSizing: 'border-box',
+                        
+                        // 🔽 SE VÁLIDO = LARANJA | SE INVÁLIDO = VERMELHO 🔽
+                        background: fieldHoverCell.isValid !== false
+                          ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)' 
+                          : 'linear-gradient(135deg, rgba(248, 113, 113, 0.18) 0%, rgba(220, 38, 38, 0.18) 100%)',
+                        
+                        border: fieldHoverCell.isValid !== false
+                          ? '2px solid rgba(251, 191, 36, 0.85)' 
+                          : '2px solid rgba(248, 113, 113, 0.85)',
+                        
+                        boxShadow: fieldHoverCell.isValid !== false
+                          ? '0 0 16px rgba(251, 191, 36, 0.35)' 
+                          : '0 0 16px rgba(248, 113, 113, 0.35)',
+                        // 🔼 -------------------------------------------- 🔼
 
-                        background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)',
-                        border: '2px solid rgba(251, 191, 36, 0.85)',
-                        boxShadow: '0 0 16px rgba(251, 191, 36, 0.35)',
                         transition: 'all 0.1s ease',
                         pointerEvents: 'none',
                         zIndex: 5,
