@@ -198,25 +198,31 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 );
 
 // ============ COMPONENTE DE INPUT PARA O GRID INTERNO ============
-const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown }) => (
+const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, onLabelClick, isSelected, isSelecting }) => (
   <div style={{
     display: 'flex',
     flexDirection: 'column',
     width: '100%',
     height: '100%',
     gap: '2px',
+    borderRadius: '0.5rem',
+    outline: isSelected ? '2px solid rgba(139, 92, 246, 0.9)' : 'none',
+    boxShadow: isSelected ? '0 0 12px rgba(139, 92, 246, 0.5)' : 'none',
+    transition: 'outline 0.15s ease, box-shadow 0.15s ease',
   }}>
     <label 
       style={{
         ...styles.gridFieldLabel,
-        cursor: 'grab',
+        cursor: isSelecting ? 'pointer' : 'grab',
         userSelect: 'none',
         padding: '1px 2px',
         borderRadius: '2px',
         transition: 'all 0.15s ease',
+        color: isSelected ? 'rgba(196, 181, 253, 1)' : undefined,
       }}
       onMouseDown={onLabelMouseDown}
-      title="Arraste para reorganizar"
+      onClick={onLabelClick}
+      title={isSelecting ? 'Clique para selecionar' : 'Arraste para reorganizar'}
     >
       {label}
     </label>
