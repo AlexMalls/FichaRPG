@@ -909,7 +909,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                         gridRow: `${fieldPositions[resizingField].row} / span ${fieldResizePreview.rows}`,
                         margin: '0px',
                         marginTop: '24px',
-                        height: 'calc(100% - 6px - 18px)',
+                        height: 'calc(100% - 6px - 16px)',
                         borderRadius: '0.3rem',
                         
                         background: fieldResizePreview.isValid 
