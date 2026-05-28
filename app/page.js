@@ -1384,16 +1384,17 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   const pos = fieldPositions[key];
                   const size = fieldSizes[key] || { cols: 1, rows: 1 };
                   const startPos = dragStartPosRef.current;
-                  const hoverPos = fieldHoverCellRef.current;
-                  const deltaCol = (startPos && hoverPos) ? hoverPos.col - startPos.col : 0;
-                  const deltaRow = (startPos && hoverPos) ? hoverPos.row - startPos.row : 0;
                   const rect = cardGridRef.current?.getBoundingClientRect();
                   const cw = cellWidth || (rect ? rect.width / activeSize.cols : 80);
                   const gapX = 14, gapY = 8;
-                  const newCol = pos.col + deltaCol;
-                  const newRow = pos.row + deltaRow;
-                  const ghostLeft = rect ? rect.left + (newCol - 1) * (cw + gapX) : fieldMousePos.x;
-                  const ghostTop  = rect ? rect.top  + (newRow - 1) * (CELL_H + gapY) + 6 : fieldMousePos.y;
+                  // Offset de cada campo em relação ao campo arrastado (em px)
+                  const draggedPos = startPos;
+                  const offsetCol = draggedPos ? pos.col - draggedPos.col : 0;
+                  const offsetRow = draggedPos ? pos.row - draggedPos.row : 0;
+                  const offsetX = offsetCol * (cw + gapX);
+                  const offsetY = offsetRow * (CELL_H + gapY);
+                  const ghostLeft = fieldMousePos.x - 60 + offsetX;
+                  const ghostTop  = fieldMousePos.y - 10 + offsetY;
                   return (
                     <div
                       key={key}
