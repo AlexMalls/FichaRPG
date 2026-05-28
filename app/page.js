@@ -452,6 +452,18 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   useEffect(() => {
     const onMouseMove = (e) => {
+      // ── Ativa marquee ao arrastar (threshold de 4px) ──
+      if (marqueeStartRef.current?._pending && cardGridRef.current) {
+        const dx = e.clientX - marqueeStartRef.current._clientX;
+        const dy = e.clientY - marqueeStartRef.current._clientY;
+        if (Math.sqrt(dx * dx + dy * dy) > 4) {
+          marqueeStartRef.current._pending = false;
+          isMarqueeRef.current = true;
+          setMarquee({ x: marqueeStartRef.current.x, y: marqueeStartRef.current.y, w: 0, h: 0 });
+          document.body.classList.add('is-marquee');
+        }
+      }
+
       // ── Atualiza marquee ──
       if (isMarqueeRef.current && cardGridRef.current) {
         const rect = cardGridRef.current.getBoundingClientRect();
@@ -643,6 +655,9 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
     const onMouseUp = (e) => {
       // ── Finaliza marquee ──
+      if (marqueeStartRef.current?._pending) {
+        marqueeStartRef.current._pending = false;
+      }
       if (isMarqueeRef.current) {
         handleCardGridMouseUp();
         return;
@@ -883,22 +898,16 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       }
     }
 
-    const now = Date.now();
-    const timeSinceLast = now - lastClickTimeRef.current;
-    lastClickTimeRef.current = now;
+    if (!cardGridRef.current) return;
+    const rect = cardGridRef.current.getBoundingClientRect();
+    const startX = e.clientX - rect.left;
+    const startY = e.clientY - rect.top;
 
-    if (timeSinceLast < 300) {
-      const rect = cardGridRef.current.getBoundingClientRect();
-      const startX = e.clientX - rect.left;
-      const startY = e.clientY - rect.top;
-
-      holdTimerRef.current = setTimeout(() => {
-        isMarqueeRef.current = true;
-        marqueeStartRef.current = { x: startX, y: startY };
-        setMarquee({ x: startX, y: startY, w: 0, h: 0 });
-        document.body.classList.add('is-marquee');
-      }, 100);
-    }
+    // Armazena ponto de início mas NÃO ativa ainda
+    marqueeStartRef.current = { x: startX, y: startY };
+    marqueeStartRef.current._clientX = e.clientX;
+    marqueeStartRef.current._clientY = e.clientY;
+    marqueeStartRef.current._pending = true;
   };
 
   const handleCardGridMouseUp = () => {
