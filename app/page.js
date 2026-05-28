@@ -254,10 +254,24 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     xp: { col: 3, row: 2 },
   });
 
+  // ── Tamanhos dos campos dentro do grid interno ──
+  const [fieldSizes, setFieldSizes] = useState(ficha?.fieldSizes || {
+    nome: { cols: 1, rows: 1 },
+    classe: { cols: 1, rows: 1 },
+    nivel: { cols: 1, rows: 1 },
+    alinhamento: { cols: 1, rows: 1 },
+    idade: { cols: 1, rows: 1 },
+    xp: { cols: 1, rows: 1 },
+  });
+
   // ── Estado de drag dos campos individuais ──
   const [draggingField, setDraggingField] = useState(null);
   const [fieldMousePos, setFieldMousePos] = useState({ x: 0, y: 0 });
   const [fieldHoverCell, setFieldHoverCell] = useState(null);
+  
+  // ── Estado de resize dos campos ──
+  const [resizingField, setResizingField] = useState(null);
+  const [fieldResizePreview, setFieldResizePreview] = useState(null);
   
   // ── largura calculada de uma célula do grid (atualizada via ResizeObserver) ──
   const [cellWidth, setCellWidth] = useState(null);
@@ -274,6 +288,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const isDraggingFieldRef = React.useRef(false);
   const cardGridRef = React.useRef(null);
   const draggingFieldKeyRef = React.useRef(null);
+  
+  // ── Refs para resize dos campos ──
+  const isResizingFieldRef = React.useRef(false);
+  const resizingFieldKeyRef = React.useRef(null);
+  const fieldResizeOrigin = React.useRef({ col: 1, row: 1 });
 
   // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
   const calcCellWidth = useCallback((containerWidth) => {
@@ -388,6 +407,15 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
         setFieldHoverCell(cell);
       }
+      if (isResizingFieldRef.current) {
+        const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
+        if (cell) {
+          const origin = fieldResizeOrigin.current;
+          const cols = Math.max(1, Math.min(cell.col - origin.col + 1, activeSize.cols - origin.col + 1));
+          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, activeSize.rows - origin.row + 1));
+          setFieldResizePreview({ cols, rows });
+        }
+      }
     };
 
     const onMouseUp = (e) => {
@@ -426,6 +454,19 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         setFieldMousePos({ x: 0, y: 0 });
         setFieldHoverCell(null);
         document.body.classList.remove('is-dragging-field');
+      }
+      if (isResizingFieldRef.current) {
+        isResizingFieldRef.current = false;
+        const fieldKey = resizingFieldKeyRef.current;
+        if (fieldResizePreview && fieldKey) {
+          setFieldSizes(prev => ({
+            ...prev,
+            [fieldKey]: { cols: fieldResizePreview.cols, rows: fieldResizePreview.rows }
+          }));
+        }
+        setResizingField(null);
+        setFieldResizePreview(null);
+        document.body.classList.remove('is-resizing-field');
       }
     };
 
@@ -487,6 +528,22 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     document.body.classList.add('is-dragging-field');
   };
 
+  const handleFieldResizeMouseDown = (fieldKey) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!cardGridRef.current) return;
+    
+    const fieldPos = fieldPositions[fieldKey];
+    if (!fieldPos) return;
+    
+    resizingFieldKeyRef.current = fieldKey;
+    fieldResizeOrigin.current = { col: fieldPos.col, row: fieldPos.row };
+    setFieldResizePreview({ ...fieldSizes[fieldKey] });
+    setResizingField(fieldKey);
+    isResizingFieldRef.current = true;
+    document.body.classList.add('is-resizing-field');
+  };
+
   const activeSize = isResizing && resizePreview ? resizePreview : cardSize;
 
   const cardOccupies = (col, row) => {
@@ -520,10 +577,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       { key: 'xp', label: 'XP', placeholder: 'Ex: 0' },
     ];
     
-    // Adicionar posição do fieldPositions
+    // Adicionar posição e tamanho do estado
     return campos.map(campo => ({
       ...campo,
-      ...(fieldPositions[campo.key] || { col: 1, row: 1 })
+      ...(fieldPositions[campo.key] || { col: 1, row: 1 }),
+      ...(fieldSizes[campo.key] || { cols: 1, rows: 1 })
     })).filter(campo => campo.col <= activeSize.cols && campo.row <= activeSize.rows);
   };
 
@@ -552,7 +610,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             <button onClick={onBack} style={styles.backButtonSidebar}>← Voltar</button>
 
             <button 
-              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize, fieldPositions, ...fichaData })} 
+              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize, fieldPositions, fieldSizes, ...fichaData })} 
               style={{
                 ...styles.buttonPrimary,
                 marginTop: '0.5rem',
@@ -682,15 +740,17 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   {/* Renderizar campos nos espaços corretos */}
                   {mapearCamposGrid().map((campo) => {
                     const fieldPos = fieldPositions[campo.key];
+                    const fieldSize = fieldSizes[campo.key];
                     const isCurrentlyDragging = draggingField === campo.key;
+                    const isCurrentlyResizing = resizingField === campo.key;
+                    const activeFieldSize = isCurrentlyResizing && fieldResizePreview ? fieldResizePreview : fieldSize;
                     
                     return (
                       <div
                         key={campo.key}
                         style={{
-                          gridColumn: fieldPos.col,
-                          gridRow: fieldPos.row,
-                          height: `${CELL_H}px`,
+                          gridColumn: `${fieldPos.col} / span ${activeFieldSize.cols}`,
+                          gridRow: `${fieldPos.row} / span ${activeFieldSize.rows}`,
                           margin: '0px',
                           marginTop: '6px',
                           borderRadius: '0.5rem',
@@ -699,6 +759,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           flexDirection: 'column',
                           opacity: isCurrentlyDragging ? 0.4 : 1,
                           transition: 'opacity 0.15s ease, grid-column 0.15s ease, grid-row 0.15s ease',
+                          position: 'relative',
+                          minHeight: `${CELL_H}px`,
                         }}
                       >
                         <GridInputField
@@ -708,6 +770,34 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           placeholder={campo.placeholder}
                           onLabelMouseDown={handleFieldMouseDown(campo.key)}
                         />
+                        
+                        {/* Botão de resize no canto inferior direito */}
+                        <div
+                          onMouseDown={handleFieldResizeMouseDown(campo.key)}
+                          title="Redimensionar"
+                          style={{
+                            position: 'absolute',
+                            bottom: 4,
+                            right: 4,
+                            width: 16,
+                            height: 16,
+                            cursor: 'nwse-resize',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: isCurrentlyResizing ? 1 : 0.5,
+                            transition: 'opacity 0.2s',
+                            zIndex: 10,
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                          onMouseLeave={e => { if (!isCurrentlyResizing) e.currentTarget.style.opacity = 0.5; }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <line x1="12" y1="4"  x2="4"  y2="12" stroke="#E8D5F0" strokeWidth="1.5" strokeLinecap="round"/>
+                            <line x1="12" y1="8"  x2="8"  y2="12" stroke="#E8D5F0" strokeWidth="1.5" strokeLinecap="round"/>
+                            <line x1="12" y1="12" x2="12" y2="12" stroke="#E8D5F0" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                        </div>
                       </div>
                     );
                   })}
@@ -731,14 +821,52 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     />
                   )}
 
+                  {/* Preview das células enquanto redimensiona um campo */}
+                  {resizingField && fieldResizePreview && (
+                    <div
+                      style={{
+                        gridColumn: `${fieldPositions[resizingField].col} / span ${fieldResizePreview.cols}`,
+                        gridRow: `${fieldPositions[resizingField].row} / span ${fieldResizePreview.rows}`,
+                        margin: '0px',
+                        marginTop: '6px',
+                        borderRadius: '0.5rem',
+                        background: 'linear-gradient(135deg, rgba(74, 222, 128, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%)',
+                        border: '2px solid rgba(74, 222, 128, 0.85)',
+                        boxShadow: '0 0 16px rgba(74, 222, 128, 0.35)',
+                        transition: 'all 0.1s ease',
+                        pointerEvents: 'none',
+                        zIndex: 5,
+                      }}
+                    />
+                  )}
+
                   {/* Preencher espaços vazios com placeholders */}
                   {Array.from({ length: activeSize.cols * activeSize.rows }).map((_, idx) => {
                     const col = (idx % activeSize.cols) + 1;
                     const row = Math.floor(idx / activeSize.cols) + 1;
-                    const temCampo = mapearCamposGrid().some(c => c.col === col && c.row === row);
-                    const isPreview = fieldHoverCell && fieldHoverCell.col === col && fieldHoverCell.row === row;
                     
-                    if (temCampo || isPreview) return null;
+                    // Verificar se há um campo nessa posição
+                    const temCampo = mapearCamposGrid().some(c => {
+                      const fieldSize = fieldSizes[c.key];
+                      return (col >= c.col && col < c.col + fieldSize.cols &&
+                              row >= c.row && row < c.row + fieldSize.rows);
+                    });
+                    
+                    // Verificar se é preview de drag
+                    const isPreviewDrag = fieldHoverCell && 
+                      col >= fieldHoverCell.col && 
+                      col < fieldHoverCell.col + (fieldSizes[draggingField]?.cols || 1) &&
+                      row >= fieldHoverCell.row && 
+                      row < fieldHoverCell.row + (fieldSizes[draggingField]?.rows || 1);
+                    
+                    // Verificar se é preview de resize
+                    const isPreviewResize = resizingField && fieldResizePreview &&
+                      col >= fieldPositions[resizingField].col &&
+                      col < fieldPositions[resizingField].col + fieldResizePreview.cols &&
+                      row >= fieldPositions[resizingField].row &&
+                      row < fieldPositions[resizingField].row + fieldResizePreview.rows;
+                    
+                    if (temCampo || isPreviewDrag || isPreviewResize) return null;
                     
                     return (
                       <div
@@ -1725,6 +1853,11 @@ const globalStyles = `
     cursor: grabbing !important;
   }
 
+  body.is-resizing-field,
+  body.is-resizing-field * {
+    cursor: nwse-resize !important;
+  }
+
   .card-field-input:focus {
     border-color: rgba(232, 213, 240, 0.5) !important;
     background: rgba(0, 0, 0, 0.5) !important;
@@ -1738,4 +1871,3 @@ if (typeof document !== 'undefined') {
 }
 
 export default EnnoisSite;
-
