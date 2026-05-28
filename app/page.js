@@ -638,24 +638,25 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   const handleCardMouseDown = (e) => {
     e.preventDefault();
-    if (gridRef.current) {
-      const gridRect = gridRef.current.getBoundingClientRect();
-      const availableWidth = gridRect.width - GRID_PADDING * 2;
-      const cellW = (availableWidth - GAP * (GRID_COLS - 1)) / GRID_COLS;
-      const ghostW = cellW * cardSize.cols + GAP * (cardSize.cols - 1);
-      const ghostH = CELL_H * cardSize.rows + GAP * (cardSize.rows - 1);
-      const offset = { x: ghostW / 2, y: ghostH / 2 };
-      setDragOffset(offset);
-      setGhostSize({ w: ghostW, h: ghostH });
-      dragOffsetRef.current = offset;
-      ghostSizeRef.current  = { w: ghostW, h: ghostH };
-    } else {
-      const offset = { x: 90, y: 20 };
-      setDragOffset(offset);
-      setGhostSize({ w: 180, h: 100 });
-      dragOffsetRef.current = offset;
-      ghostSizeRef.current  = { w: 180, h: 100 };
-    }
+    
+    // Pegamos a posição do elemento clicado
+    const rect = e.currentTarget.getBoundingClientRect();
+    
+    // O offset agora é a distância entre o clique e o canto do elemento
+    const offset = { 
+      x: e.clientX - rect.left, 
+      y: e.clientY - rect.top 
+    };
+    
+    setDragOffset(offset);
+    dragOffsetRef.current = offset;
+
+    // Mantemos o tamanho do fantasma igual ao tamanho real do elemento
+    const ghostW = rect.width;
+    const ghostH = rect.height;
+    setGhostSize({ w: ghostW, h: ghostH });
+    ghostSizeRef.current = { w: ghostW, h: ghostH };
+
     cardSizeRef.current = { ...cardSize };
     setMousePos({ x: e.clientX, y: e.clientY });
     setIsDraggingCard(true);
