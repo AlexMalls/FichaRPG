@@ -641,7 +641,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
 
-    const offset = { x: 0, y: 0 };
+    // O offset é onde o mouse clicou DENTRO do card da sidebar
+    // Assim o fantasma nasce no canto superior esquerdo do card, não no mouse
+    const offset = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
     setDragOffset(offset);
     dragOffsetRef.current = offset;
 
