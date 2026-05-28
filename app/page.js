@@ -24,7 +24,7 @@ const GRID_CONFIG = {
   alturaCell:    40,   // altura de cada célula em px
   gap:           8,    // espaçamento entre células em px
   paddingGrid:   16,   // padding interno do grid em px
-  opacidadeCelula: 0.08, // opacidade das células (0.0 a 1.0)
+  opacidadeCelula: 0.04, // opacidade das células (0.0 a 1.0)
   mostrarTextoCelula: false, // true = mostra "C:1 L:1", false = esconde
 };
 // ── aliases internos (não mexa) ──────────────────────────────
