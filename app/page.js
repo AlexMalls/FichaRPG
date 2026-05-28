@@ -24,6 +24,8 @@ const GRID_CONFIG = {
   alturaCell:    40,   // altura de cada célula em px
   gap:           8,    // espaçamento entre células em px
   paddingGrid:   16,   // padding interno do grid em px
+  opacidadeCelula: 0.08, // opacidade das células (0.0 a 1.0)
+  mostrarTextoCelula: false, // true = mostra "C:1 L:1", false = esconde
 };
 // ── aliases internos (não mexa) ──────────────────────────────
 const GRID_COLS    = GRID_CONFIG.colunas;
@@ -895,9 +897,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     ),
                   }}
                 >
-                  <div style={styles.spaceCardContent}>
-                    C:{espaco.col} L:{espaco.row}
-                  </div>
+                  {GRID_CONFIG.mostrarTextoCelula && (
+                    <div style={styles.spaceCardContent}>
+                      C:{espaco.col} L:{espaco.row}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1923,7 +1927,7 @@ const styles = {
     transition: 'all 0.3s ease',
     position: 'relative',
     overflow: 'hidden',
-    opacity: 0.5,
+    opacity: GRID_CONFIG.opacidadeCelula,
   },
   spaceCardContent: {
     fontSize: '1.2rem',
