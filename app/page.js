@@ -24,7 +24,7 @@ const GRID_CONFIG = {
   alturaCell:    40,   // altura de cada célula em px
   gap:           8,    // espaçamento entre células em px
   paddingGrid:   16,   // padding interno do grid em px
-  opacidadeCelula: 0.08, // opacidade das células (0.0 a 1.0)
+  opacidadeCelula: 0.00, // opacidade das células (0.0 a 1.0)
   mostrarTextoCelula: false, // true = mostra "C:1 L:1", false = esconde
 };
 // ── aliases internos (não mexa) ──────────────────────────────
@@ -39,7 +39,7 @@ const GRID_PADDING = GRID_CONFIG.paddingGrid;
 // ⚙️  CONFIGURAÇÃO DO GRID INTERNO (dentro do CardMóvel)
 // ============================================================
 const GRID_INTERNO_CONFIG = {
-  opacidadeCelula:    0.08,   // opacidade das células internas (0.0 a 1.0)
+  opacidadeCelula:    0.00,   // opacidade das células internas (0.0 a 1.0)
   mostrarTextoCelula: false,  // true = mostra "1:2", false = esconde
 };
 // ============================================================
