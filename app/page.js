@@ -1208,10 +1208,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 position: 'fixed',
                 left: `${mousePos.x - dragOffset.x}px`,
                 top:  `${mousePos.y - dragOffset.y}px`,
-                width: dragOffset.x === 0 && dragOffset.y === 0
+                width: !cardMovelPos
                   ? `${Math.max(ghostSize.w, (cellWidth * activeSize.cols) + (GAP * (activeSize.cols - 1)))}px`
                   : `${ghostSize.w}px`,
-                height: dragOffset.x === 0 && dragOffset.y === 0
+                height: !cardMovelPos
                   ? `${Math.max(ghostSize.h, (CELL_H * activeSize.rows) + (GAP * (activeSize.rows - 1)))}px`
                   : `${ghostSize.h}px`,
                 pointerEvents: 'none',
@@ -1219,7 +1219,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 opacity: 0.8,
                 cursor: 'grabbing',
                 boxShadow: '0 20px 40px rgba(232, 213, 240, 0.4)',
-                transition: dragOffset.x === 0 && dragOffset.y === 0
+                transition: isDraggingCard && !cardMovelPos
                   ? 'width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
                   : 'none',
               }}
