@@ -638,15 +638,22 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   const handleCardMouseDown = (e) => {
     e.preventDefault();
-    
-    // Pegamos a posição do elemento clicado
     const rect = e.currentTarget.getBoundingClientRect();
     
-    // O offset agora é a distância entre o clique e o canto do elemento
-    const offset = { 
-      x: e.clientX - rect.left, 
-      y: e.clientY - rect.top 
-    };
+    // Guardamos o tamanho inicial (da sidebar) para iniciar a animação
+    setGhostSize({ w: rect.width, h: rect.height });
+    
+    // O offset agora é fixo no topo-esquerdo (0,0 em relação ao card) para ser profissional
+    const offset = { x: 0, y: 0 }; 
+    setDragOffset(offset);
+    dragOffsetRef.current = offset;
+
+    cardSizeRef.current = { ...cardSize };
+    setMousePos({ x: e.clientX, y: e.clientY });
+    setIsDraggingCard(true);
+    isDraggingRef.current = true;
+    document.body.classList.add('is-dragging');
+  };
     
     setDragOffset(offset);
     dragOffsetRef.current = offset;
@@ -1182,23 +1189,36 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             )}
           </div>
 
-          {/* Card fantasma */}
+          {/* Card fantasma com animação de expansão */}
           {isDraggingCard && (
             <div
               style={{
                 ...styles.cardMovel,
                 position: 'fixed',
-                left: `${mousePos.x - dragOffset.x + 6}px`,
-                top:  `${mousePos.y - dragOffset.y + 6}px`,
-                width:  `${ghostSize.w - 12}px`,
-                height: `${ghostSize.h - 12}px`,
+                // A posição segue o mouse, mas alinhada ao topo-esquerdo do card
+                left: `${mousePos.x}px`,
+                top:  `${mousePos.y}px`,
+                
+                // O fantasma começa pequeno (da sidebar) e expande para o tamanho real
+                // activeSize aqui refere-se ao tamanho real (ex: 2x3)
+                width:  `${Math.max(ghostSize.w, (cellWidth * activeSize.cols) + (GAP * (activeSize.cols - 1)))}px`,
+                height: `${Math.max(ghostSize.h, (CELL_H * activeSize.rows) + (GAP * (activeSize.rows - 1)))}px`,
+                
                 pointerEvents: 'none',
                 zIndex: 9999,
-                opacity: 0.6,
+                opacity: 0.8,
                 cursor: 'grabbing',
-                boxShadow: '0 12px 32px rgba(232, 213, 240, 0.35)',
-                transition: 'none',
+                boxShadow: '0 20px 40px rgba(232, 213, 240, 0.4)',
+                
+                // A mágica da suavidade:
+                transition: 'width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
               }}
+            >
+              <div style={styles.cardMovelHeader}>
+                <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
+              </div>
+            </div>
+          )}
             >
               <div style={styles.cardMovelHeader}>
                 <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
