@@ -35,6 +35,15 @@ const GAP          = GRID_CONFIG.gap;
 const GRID_PADDING = GRID_CONFIG.paddingGrid;
 // ============================================================
 
+// ============================================================
+// ⚙️  CONFIGURAÇÃO DO GRID INTERNO (dentro do CardMóvel)
+// ============================================================
+const GRID_INTERNO_CONFIG = {
+  opacidadeCelula:    0.3,   // opacidade das células internas (0.0 a 1.0)
+  mostrarTextoCelula: false,  // true = mostra "1:2", false = esconde
+};
+// ============================================================
+
 // ============ TEMA CENTRALIZADO ============
 const theme = {
   colors: {
@@ -1139,12 +1148,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           margin: '0px',
                           marginTop: '6px',
                           borderRadius: '0.5rem',
-                          opacity: 0.3,
+                          opacity: GRID_INTERNO_CONFIG.opacidadeCelula,
                         }}
                       >
-                        <div style={styles.spaceCardContent}>
-                          {col}:{row}
-                        </div>
+                        {GRID_INTERNO_CONFIG.mostrarTextoCelula && (
+                          <div style={styles.spaceCardContent}>
+                            {col}:{row}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
