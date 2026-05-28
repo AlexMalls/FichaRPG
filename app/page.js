@@ -859,7 +859,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                         gridRow: `${fieldPositions[resizingField].row} / span ${fieldResizePreview.rows}`,
                         margin: '0px',
                         marginTop: '23px',
-                        borderRadius: '0.1rem',
+                        borderRadius: '0.3rem',
                         height: 'calc(100% - 6px - 12px)',
                         background: 'linear-gradient(135deg, rgba(74, 222, 128, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%)',
                         border: '2px solid rgba(74, 222, 128, 0.85)',
