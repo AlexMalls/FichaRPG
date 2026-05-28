@@ -225,7 +225,32 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown 
 
 const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [cardMovelPos, setCardMovelPos]     = useState(ficha?.cardMovelPos || null);
-  const [cardSize, setCardSize]             = useState(ficha?.cardSize || { cols: 2, rows: 4 });
+  // Calcula o tamanho mínimo baseado nas posições e tamanhos dos campos
+  const calcularTamanhoMinimo = () => {
+    const positions = ficha?.fieldPositions || {
+      nome: { col: 1, row: 1 }, classe: { col: 2, row: 1 }, nivel: { col: 3, row: 1 },
+      alinhamento: { col: 1, row: 2 }, idade: { col: 2, row: 2 }, xp: { col: 3, row: 2 },
+    };
+    const sizes = ficha?.fieldSizes || {
+      nome: { cols: 1, rows: 1 }, classe: { cols: 1, rows: 1 }, nivel: { cols: 1, rows: 1 },
+      alinhamento: { cols: 1, rows: 1 }, idade: { cols: 1, rows: 1 }, xp: { cols: 1, rows: 1 },
+    };
+    let minCols = 1;
+    let minRows = 1;
+    for (const key in positions) {
+      const p = positions[key];
+      const s = sizes[key] || { cols: 1, rows: 1 };
+      if (p.col + s.cols - 1 > minCols) minCols = p.col + s.cols - 1;
+      if (p.row + s.rows - 1 > minRows) minRows = p.row + s.rows - 1;
+    }
+    return { cols: minCols, rows: minRows + 1 }; // +1 pelo cabeçalho
+  };
+
+  const [cardSize, setCardSize] = useState(() => {
+    // Se o usuário já salvou um tamanho, usa ele. Senão, calcula o mínimo.
+    if (ficha?.cardSize) return ficha.cardSize;
+    return calcularTamanhoMinimo();
+  });
   const [isDraggingCard, setIsDraggingCard] = useState(false);
   const [dragOffset, setDragOffset]         = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
@@ -285,7 +310,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const resizeOrigin   = React.useRef({ col: 1, row: 1 });
   const dragOffsetRef  = React.useRef({ x: 0, y: 0 });
   const ghostSizeRef   = React.useRef({ w: 180, h: 100 });
-  const cardSizeRef    = React.useRef(ficha?.cardSize || { cols: 2, rows: 4 });
+  const cardSizeRef    = React.useRef(ficha?.cardSize || calcularTamanhoMinimo());
   
   // ── Refs para drag dos campos ──
   const isDraggingFieldRef = React.useRef(false);
