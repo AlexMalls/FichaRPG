@@ -458,12 +458,38 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         const currentX = e.clientX - rect.left;
         const currentY = e.clientY - rect.top;
         const start = marqueeStartRef.current;
-        setMarquee({
+        const newMarquee = {
           x: start.x,
           y: start.y,
           w: currentX - start.x,
           h: currentY - start.y,
+        };
+        setMarquee(newMarquee);
+
+        // ── Atualiza seleção em tempo real ──
+        const selLeft   = Math.min(newMarquee.x, newMarquee.x + newMarquee.w);
+        const selRight  = Math.max(newMarquee.x, newMarquee.x + newMarquee.w);
+        const selTop    = Math.min(newMarquee.y, newMarquee.y + newMarquee.h);
+        const selBottom = Math.max(newMarquee.y, newMarquee.y + newMarquee.h);
+
+        const campos = mapearCamposGrid();
+        const cw = cellWidth || (rect.width / activeSize.cols);
+        const gapX = 14, gapY = 8;
+
+        const selecionados = campos.filter(campo => {
+          const pos  = fieldPositionsRef.current[campo.key];
+          const size = fieldSizesRef.current[campo.key] || { cols: 1, rows: 1 };
+          const fieldLeft   = (pos.col - 1) * (cw + gapX);
+          const fieldTop    = (pos.row - 1) * (CELL_H + gapY) + 6;
+          const fieldRight  = fieldLeft + cw * size.cols + gapX * (size.cols - 1);
+          const fieldBottom = fieldTop  + CELL_H * size.rows + gapY * (size.rows - 1);
+          return fieldLeft < selRight && fieldRight > selLeft &&
+                 fieldTop  < selBottom && fieldBottom > selTop;
         });
+
+        const novaSelecao = selecionados.map(c => c.key);
+        setSelectedFields(novaSelecao);
+        selectedFieldsRef.current = novaSelecao;
       }
 
       if (isDraggingRef.current) {
