@@ -233,6 +233,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [resizePreview, setResizePreview]   = useState(null);
   const [ghostSize, setGhostSize]           = useState({ w: 180, h: 100 });
   const [hoverCell, setHoverCell]           = useState(null);
+  const [ghostExpanded, setGhostExpanded]   = useState(false);
 
   // ── Estado dos campos do card móvel ──
   const [fichaData, setFichaData] = useState({
@@ -655,9 +656,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
     cardSizeRef.current = { ...cardSize };
     setMousePos({ x: e.clientX, y: e.clientY });
+    setGhostExpanded(false); // começa pequeno
     setIsDraggingCard(true);
     isDraggingRef.current = true;
     document.body.classList.add('is-dragging');
+    // no próximo frame expande para o tamanho real
+    requestAnimationFrame(() => setGhostExpanded(true));
   };
 
   // ── Drag a partir do GRID ──
@@ -1209,10 +1213,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 left: `${mousePos.x - dragOffset.x}px`,
                 top:  `${mousePos.y - dragOffset.y}px`,
                 width: !cardMovelPos
-                  ? `${Math.max(ghostSize.w, (cellWidth * activeSize.cols) + (GAP * (activeSize.cols - 1)))}px`
+                  ? ghostExpanded
+                    ? `${(cellWidth * activeSize.cols) + (GAP * (activeSize.cols - 1))}px`
+                    : `${ghostSize.w}px`
                   : `${ghostSize.w}px`,
                 height: !cardMovelPos
-                  ? `${Math.max(ghostSize.h, (CELL_H * activeSize.rows) + (GAP * (activeSize.rows - 1)))}px`
+                  ? ghostExpanded
+                    ? `${(CELL_H * activeSize.rows) + (GAP * (activeSize.rows - 1))}px`
+                    : `${ghostSize.h}px`
                   : `${ghostSize.h}px`,
                 pointerEvents: 'none',
                 zIndex: 9999,
