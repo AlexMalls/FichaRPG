@@ -198,31 +198,25 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 );
 
 // ============ COMPONENTE DE INPUT PARA O GRID INTERNO ============
-const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, onLabelClick, isSelected, isSelecting }) => (
+const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown }) => (
   <div style={{
     display: 'flex',
     flexDirection: 'column',
     width: '100%',
     height: '100%',
     gap: '2px',
-    borderRadius: '0.5rem',
-    outline: isSelected ? '2px solid rgba(139, 92, 246, 0.9)' : 'none',
-    boxShadow: isSelected ? '0 0 12px rgba(139, 92, 246, 0.5)' : 'none',
-    transition: 'outline 0.15s ease, box-shadow 0.15s ease',
   }}>
     <label 
       style={{
         ...styles.gridFieldLabel,
-        cursor: isSelecting ? 'pointer' : 'grab',
+        cursor: 'grab',
         userSelect: 'none',
         padding: '1px 2px',
         borderRadius: '2px',
         transition: 'all 0.15s ease',
-        color: isSelected ? 'rgba(196, 181, 253, 1)' : undefined,
       }}
       onMouseDown={onLabelMouseDown}
-      onClick={onLabelClick}
-      title={isSelecting ? 'Clique para selecionar' : 'Arraste para reorganizar'}
+      title="Arraste para reorganizar"
     >
       {label}
     </label>
@@ -317,14 +311,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── Estado de resize dos campos ──
   const [resizingField, setResizingField] = useState(null);
   const [fieldResizePreview, setFieldResizePreview] = useState(null);
-  
-  // ── Seleção múltipla ──
-  const [selectedFields, setSelectedFields] = useState([]);
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [selectStart, setSelectStart] = useState(null);
-  const doubleClickTimerRef = React.useRef(null);
-  const holdTimerRef = React.useRef(null);
-  const lastClickTimeRef = React.useRef(0);
   
   // ── largura calculada de uma célula do grid (atualizada via ResizeObserver) ──
   const [cellWidth, setCellWidth] = useState(null);
@@ -640,39 +626,20 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       if (isDraggingFieldRef.current) {
         isDraggingFieldRef.current = false;
         const fieldKey = draggingFieldKeyRef.current;
-        const finalHover = fieldHoverCellRef.current;
+        const finalHover = fieldHoverCellRef.current; // Puxa do Ref
         
+        // ── SÓ SALVA A POSIÇÃO SE isValid FOR TRUE ──
         if (finalHover && fieldKey && finalHover.isValid) {
-          // Calcula o delta de movimento
-          const oldPos = fieldPositionsRef.current[fieldKey];
-          const deltaCol = finalHover.col - oldPos.col;
-          const deltaRow = finalHover.row - oldPos.row;
-
-          // Se há múltiplos selecionados, move todos juntos
-          if (selectedFields.length > 1 && selectedFields.includes(fieldKey)) {
-            setFieldPositions(prev => {
-              const next = { ...prev };
-              for (const key of selectedFields) {
-                const p = prev[key];
-                next[key] = {
-                  col: Math.max(1, p.col + deltaCol),
-                  row: Math.max(1, p.row + deltaRow),
-                };
-              }
-              return next;
-            });
-          } else {
-            setFieldPositions(prev => ({
-              ...prev,
-              [fieldKey]: { col: finalHover.col, row: finalHover.row }
-            }));
-          }
+          setFieldPositions(prev => ({
+            ...prev,
+            [fieldKey]: { col: finalHover.col, row: finalHover.row }
+          }));
         }
         
         setDraggingField(null);
         setFieldMousePos({ x: 0, y: 0 });
         setFieldHoverCell(null);
-        fieldHoverCellRef.current = null;
+        fieldHoverCellRef.current = null; // Limpar a ref
         document.body.classList.remove('is-dragging-field');
         return;
       }
@@ -771,72 +738,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     e.stopPropagation();
     if (!cardGridRef.current) return;
     
-    setDraggingField(fieldKey);
-    isDraggingFieldRef.current = true;
-    draggingFieldKeyRef.current = fieldKey;
-    setFieldMousePos({ x: e.clientX, y: e.clientY });
-    document.body.classList.add('is-dragging-field');
-  };
-
-  // ── Duplo clique + hold para iniciar seleção ──
-  const handleCardGridMouseDown = (e) => {
-    // Ignora se clicou num input ou label (drag de campo)
-    if (e.target.tagName === 'INPUT') return;
-    
-    const now = Date.now();
-    const timeSinceLast = now - lastClickTimeRef.current;
-    lastClickTimeRef.current = now;
-
-    // Detecta duplo clique (menos de 300ms entre cliques)
-    if (timeSinceLast < 300) {
-      // Inicia o timer de hold (0.1s)
-      holdTimerRef.current = setTimeout(() => {
-        setIsSelecting(true);
-      }, 100);
-    }
-  };
-
-  const handleCardGridMouseUp = (e) => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-  };
-
-  // ── Clique fora das boxes selecionadas deseleciona tudo ──
-  const handleDeselectAll = (e) => {
-    // Só deseleciona se não foi um drag de campo selecionado
-    if (isDraggingFieldRef.current) return;
-    setSelectedFields([]);
-    setIsSelecting(false);
-  };
-
-  // ── Clique no título da box: seleciona ou adiciona à seleção ──
-  const handleFieldSelectMouseDown = (fieldKey) => (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isSelecting) return;
-
-    setSelectedFields(prev => {
-      if (prev.includes(fieldKey)) return prev;
-      return [...prev, fieldKey];
-    });
-  };
-
-  // ── Drag de múltiplas boxes selecionadas ──
-  const handleGroupDragMouseDown = (fieldKey) => (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Se o campo clicado não está na seleção, deseleciona tudo e age normalmente
-    if (!selectedFields.includes(fieldKey)) {
-      setSelectedFields([]);
-      setIsSelecting(false);
-      handleFieldMouseDown(fieldKey)(e);
-      return;
-    }
-
-    // Inicia drag em grupo
     setDraggingField(fieldKey);
     isDraggingFieldRef.current = true;
     draggingFieldKeyRef.current = fieldKey;
@@ -1053,9 +954,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 {/* GRID INTERNO COM CAMPOS */}
                 <div
                   ref={cardGridRef}
-                  onMouseDown={(e) => { e.stopPropagation(); handleCardGridMouseDown(e); }}
-                  onMouseUp={handleCardGridMouseUp}
-                  onClick={handleDeselectAll}
+                  onMouseDown={e => e.stopPropagation()}
                   style={{
                     display: 'grid',
                     // Mesmo número de colunas do card
@@ -1109,14 +1008,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           value={fichaData[campo.key]}
                           onChange={(e) => handleFieldChange(campo.key, e.target.value)}
                           placeholder={campo.placeholder}
-                          onLabelMouseDown={
-                            isSelecting
-                              ? handleGroupDragMouseDown(campo.key)
-                              : handleFieldMouseDown(campo.key)
-                          }
-                          onLabelClick={isSelecting ? handleFieldSelectMouseDown(campo.key) : undefined}
-                          isSelected={selectedFields.includes(campo.key)}
-                          isSelecting={isSelecting}
+                          onLabelMouseDown={handleFieldMouseDown(campo.key)}
                         />
                         
                         {/* Botão de resize no canto inferior direito */}
