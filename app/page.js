@@ -375,7 +375,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     const col = Math.floor(relX / (cellW + gapX)) + 1;
     const row = Math.floor(relY / (CELL_H + gapY)) + 1;
     
-    if (col < 1 || col > activeSize.cols || row < 1 || row > activeSize.rows) return null;
+    if (col < 1 || col > activeSize.cols || row < 1 || row > activeSize.rows - 1) return null;
     return { col, row };
   };
 
@@ -479,7 +479,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const bottomA = cell.row + size.rows - 1;
 
           // 1. Bloquear se a caixa for arrastada para fora dos limites da janela (grid)
-          if (rightA > currentCardSize.cols || bottomA > currentCardSize.rows) {
+          if (rightA > currentCardSize.cols || bottomA > currentCardSize.rows - 1) {
             hasOverlap = true;
           } else {
             // 2. Bloquear se bater noutra textbox
@@ -519,7 +519,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const resizingKey = resizingFieldKeyRef.current;
           
           const cols = Math.max(1, Math.min(cell.col - origin.col + 1, currentSize.cols - origin.col + 1));
-          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, currentSize.rows - origin.row + 1));
+          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, (currentSize.rows - 1) - origin.row + 1));
           
           let hasOverlap = false;
           const positions = fieldPositionsRef.current;
@@ -748,7 +748,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       ...campo,
       ...(fieldPositions[campo.key] || { col: 1, row: 1 }),
       ...(fieldSizes[campo.key] || { cols: 1, rows: 1 })
-    })).filter(campo => campo.col <= activeSize.cols && campo.row <= activeSize.rows);
+    })).filter(campo => campo.col <= activeSize.cols && campo.row <= activeSize.rows - 1);
   };
 
   const handleFieldChange = (key, value) => {
@@ -891,8 +891,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     gridTemplateColumns: fieldBoxWidth != null
                       ? `repeat(${activeSize.cols}, ${fieldBoxWidth}px)`
                       : `repeat(${activeSize.cols}, 1fr)`,
-                    // Mesmo número de linhas do card
-                    gridTemplateRows: `repeat(${activeSize.rows}, ${CELL_H}px)`,
+                    // Mesmo número de linhas do card, menos 1 do cabeçalho
+                    gridTemplateRows: `repeat(${activeSize.rows - 1}, ${CELL_H}px)`,
                     // Gap idêntico ao grid externo
                     gap: `14px`,
                     rowGap: '8px',
@@ -1040,7 +1040,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   )}
 
                   {/* Preencher espaços vazios com placeholders */}
-                  {Array.from({ length: activeSize.cols * activeSize.rows }).map((_, idx) => {
+                  {Array.from({ length: activeSize.cols * (activeSize.rows - 1) }).map((_, idx) => {
                     const col = (idx % activeSize.cols) + 1;
                     const row = Math.floor(idx / activeSize.cols) + 1;
                     
