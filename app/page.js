@@ -278,7 +278,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   const isDraggingRef  = React.useRef(false);
   const isResizingRef  = React.useRef(false);
-  const resizePreviewRef = React.useRef(null);
   const gridRef        = React.useRef(null);
   const resizeOrigin   = React.useRef({ col: 1, row: 1 });
   const dragOffsetRef  = React.useRef({ x: 0, y: 0 });
@@ -319,11 +318,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
     return () => observer.disconnect();
   }, [calcCellWidth]);
-
-  // ── Sincronizar resizePreview com ref ──
-  useEffect(() => {
-    resizePreviewRef.current = resizePreview;
-  }, [resizePreview]);
 
   const espacos = [];
   let id = 1;
@@ -429,9 +423,9 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         isResizingRef.current = false;
         setIsResizing(false);
         document.body.classList.remove('is-resizing');
-        if (resizePreviewRef.current) {
-          setCardSize(resizePreviewRef.current);
-          cardSizeRef.current = { ...resizePreviewRef.current };
+        if (resizePreview) {
+          setCardSize(resizePreview);
+          cardSizeRef.current = { ...resizePreview };
         }
         setResizePreview(null);
         return;
@@ -482,7 +476,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [cellWidth]);
+  }, [resizePreview, cellWidth]);
 
   const handleCardMouseDown = (e) => {
     e.preventDefault();
