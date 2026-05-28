@@ -735,14 +735,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         document.body.classList.remove('is-dragging-field');
         return;
       }
-        
-        setDraggingField(null);
-        setFieldMousePos({ x: 0, y: 0 });
-        setFieldHoverCell(null);
-        fieldHoverCellRef.current = null; // Limpar a ref
-        document.body.classList.remove('is-dragging-field');
-        return;
-      }
       
       if (isResizingFieldRef.current) {
         isResizingFieldRef.current = false;
