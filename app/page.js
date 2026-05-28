@@ -437,6 +437,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             if (endRow > minRows) minRows = endRow;
           }
 
+          // 🔽 A CORREÇÃO ENTRA AQUI 🔽
+          // O cabeçalho ocupa 1 linha. Logo, o card precisa da altura dos campos + 1.
+          const cardMinRows = minRows + 1;
+
           let overdragRight = false;
           let overdragBottom = false;
 
@@ -445,8 +449,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             targetCols = minCols;
             overdragRight = true;
           }
-          if (targetRows < minRows) {
-            targetRows = minRows;
+          if (targetRows < cardMinRows) {     // <-- Usa o novo limite (cardMinRows)
+            targetRows = cardMinRows;         // <-- E aqui também
             overdragBottom = true;
           }
 
