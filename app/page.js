@@ -902,16 +902,15 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   )}
 
                   {/* Preview das células enquanto redimensiona um campo */}
-                  {/* Preview das células enquanto redimensiona um campo */}
                   {resizingField && fieldResizePreview && (
                     <div
                       style={{
                         gridColumn: `${fieldPositions[resizingField].col} / span ${fieldResizePreview.cols}`,
                         gridRow: `${fieldPositions[resizingField].row} / span ${fieldResizePreview.rows}`,
                         margin: '0px',
-                        marginTop: '12px',
+                        marginTop: '24px',
                         height: 'calc(100% - 6px - 22px)',
-                        borderRadius: '0.5rem',
+                        borderRadius: '0.3rem',
                         
                         background: fieldResizePreview.isValid 
                           ? 'linear-gradient(135deg, rgba(74, 222, 128, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%)' 
