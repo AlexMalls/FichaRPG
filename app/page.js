@@ -264,6 +264,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     xp: { cols: 1, rows: 1 },
   });
 
+  const [cardOverdrag, setCardOverdrag] = useState({ right: false, bottom: false });
+
   // ── Estado de drag dos campos individuais ──
   const [draggingField, setDraggingField] = useState(null);
   const [fieldMousePos, setFieldMousePos] = useState({ x: 0, y: 0 });
@@ -409,13 +411,47 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         setHoverCell(cell);
       }
       
+      // ── REDIMENSIONAMENTO DO CARD PRINCIPAL (COM LIMITES) ──
       if (isResizingRef.current) {
         const cell = getCellFromPoint(e.clientX, e.clientY);
         if (cell) {
           const origin = resizeOrigin.current;
-          const cols = Math.max(1, Math.min(cell.col - origin.col + 1, GRID_COLS - origin.col + 1));
-          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, GRID_ROWS - origin.row + 1));
-          setResizePreview({ cols, rows });
+          
+          let targetCols = Math.max(1, Math.min(cell.col - origin.col + 1, GRID_COLS - origin.col + 1));
+          let targetRows = Math.max(1, Math.min(cell.row - origin.row + 1, GRID_ROWS - origin.row + 1));
+          
+          
+          // 1. Descobrir até onde vão as textboxes internas
+          let minCols = 1;
+          let minRows = 1;
+          const positions = fieldPositionsRef.current;
+          const sizes = fieldSizesRef.current;
+
+          for (const key in positions) {
+            const p = positions[key];
+            const s = sizes[key] || { cols: 1, rows: 1 };
+            const endCol = p.col + s.cols - 1; // Coluna final desta textbox
+            const endRow = p.row + s.rows - 1; // Linha final desta textbox
+            
+            if (endCol > minCols) minCols = endCol;
+            if (endRow > minRows) minRows = endRow;
+          }
+
+          let overdragRight = false;
+          let overdragBottom = false;
+
+          // 2. Travar o tamanho se tentar engolir uma textbox e ativar o "Bounce"
+          if (targetCols < minCols) {
+            targetCols = minCols;
+            overdragRight = true;
+          }
+          if (targetRows < minRows) {
+            targetRows = minRows;
+            overdragBottom = true;
+          }
+
+          setCardOverdrag({ right: overdragRight, bottom: overdragBottom });
+          setResizePreview({ cols: targetCols, rows: targetRows });
         }
       }
       
@@ -515,10 +551,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     };
 
     const onMouseUp = (e) => {
+      // 1. Redimensionamento do Card Principal
       if (isResizingRef.current) {
         isResizingRef.current = false;
         setIsResizing(false);
         document.body.classList.remove('is-resizing');
+        
+        // Limpa o efeito de mola ao soltar
+        setCardOverdrag({ right: false, bottom: false }); 
         
         if (resizePreview) {
           const newSize = { ...resizePreview };
@@ -810,10 +850,15 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               );
             })}
 
-            {/* Card posicionado no grid */}
+            {/* ✨ AQUI ESTÁ A MAGIA ✨ -> Card posicionado no grid (com as classes) */}
             {cardMovelPos && (
               <div
                 onMouseDown={handleCardMouseDown}
+                className={`card-bounce-transition ${
+                  cardOverdrag.right && cardOverdrag.bottom ? 'card-bounce-both' : 
+                  cardOverdrag.right ? 'card-bounce-right' : 
+                  cardOverdrag.bottom ? 'card-bounce-bottom' : ''
+                }`}
                 style={{
                   ...styles.cardMovel,
                   gridColumn: `${cardMovelPos.col} / span ${activeSize.cols}`,
@@ -821,7 +866,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   margin: '0px',
                   cursor: isDraggingCard ? 'grabbing' : 'grab',
                   opacity: isDraggingCard ? 0.6 : 1,
-                  transition: 'opacity 0.15s ease, grid-column 0.1s ease, grid-row 0.1s ease',
                   overflow: 'hidden',
                   zIndex: 2,
                   flexDirection: 'column',
@@ -833,7 +877,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   <h4 style={styles.cardMovelTitle}>INFORMAÇÕES BÁSICAS</h4>
                 </div>
 
-                {/* ✨ GRID INTERNO COM CAMPOS ✨ */}
+                {/* GRID INTERNO COM CAMPOS */}
                 <div
                   ref={cardGridRef}
                   onMouseDown={e => e.stopPropagation()}
@@ -1966,6 +2010,28 @@ const globalStyles = `
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
+
+  /* 🔽 CSS DA MOLA ATUALIZADO (Inclui as transições base para nada quebrar) 🔽 */
+  .card-bounce-transition {
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease, opacity 0.15s ease, grid-column 0.1s ease, grid-row 0.1s ease !important;
+    transform-origin: top left;
+  }
+  
+  .card-bounce-right {
+    transform: scaleX(0.97); /* Encolhe ~10px na direita */
+    box-shadow: inset -24px 0 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
+  }
+  
+  .card-bounce-bottom {
+    transform: scaleY(0.97); /* Encolhe ~10px na base */
+    box-shadow: inset 0 -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
+  }
+  
+  .card-bounce-both {
+    transform: scale(0.97);
+    box-shadow: inset -24px -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
+  }
+  /* 🔼 ==================================================================== 🔼 */
   
   @keyframes slideIn {
     from {
