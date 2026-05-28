@@ -885,14 +885,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     gridRow: espaco.row,
                     ...(ocupado
                       ? { opacity: 0 }
-                      : preview
-                      ? {
-                          opacity: 1,
-                          border: '2px solid rgba(251, 191, 36, 0.85)',
-                          background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)',
-                          boxShadow: '0 0 16px rgba(251, 191, 36, 0.35)',
-                          transition: 'all 0.1s ease',
-                        }
                       : { opacity: GRID_CONFIG.opacidadeCelula }
                     ),
                   }}
@@ -905,6 +897,23 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 </div>
               );
             })}
+
+            {/* Preview unificado do drop */}
+            {isDraggingCard && hoverCell && (
+              <div
+                style={{
+                  gridColumn: `${hoverCell.col} / span ${cardSize.cols}`,
+                  gridRow: `${hoverCell.row} / span ${cardSize.rows}`,
+                  borderRadius: '0.75rem',
+                  background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)',
+                  border: '2px solid rgba(251, 191, 36, 0.85)',
+                  boxShadow: '0 0 24px rgba(251, 191, 36, 0.35)',
+                  transition: 'all 0.1s ease',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                }}
+              />
+            )}
 
             {/* ✨ AQUI ESTÁ A MAGIA ✨ -> Card posicionado no grid (com as classes) */}
             {cardMovelPos && (
