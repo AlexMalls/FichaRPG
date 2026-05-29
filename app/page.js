@@ -634,51 +634,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const topA = origin.row;
           const bottomA = origin.row + rows - 1;
 
-          // Detectar direção PRINCIPAL do resize comparando com o preview anterior
+          // Tamanho original da box antes de começar a arrastar
           const originalSize = sizes[resizingKey] || { cols: 1, rows: 1 };
-          const prevPreview = fieldResizePreviewRef.current;
-          const prevCols = prevPreview ? prevPreview.cols : originalSize.cols;
-          const prevRows = prevPreview ? prevPreview.rows : originalSize.rows;
-
-          // Em qual direção o redimensionamento ACABOU de acontecer (neste milissegundo)?
-          const growingRight  = cols > prevCols;
-          const growingBottom = rows > prevRows;
-          const shrinkingRight = cols < prevCols;
-          const shrinkingBottom = rows < prevRows;
-
-          let pushRight = false;
-          let pushBottom = false;
-
-          // ── A MÁGICA: Esquece o tamanho inicial, foca no movimento ATUAL ──
-          if (growingRight && !growingBottom) {
-            pushRight = true;
-          } else if (growingBottom && !growingRight) {
-            pushBottom = true;
-          } else if (growingRight && growingBottom) {
-            // Se cresceu pros dois lados num frame só (raro), usa o maior delta
-            pushRight = (cols - prevCols) >= (rows - prevRows);
-            pushBottom = !pushRight;
-          } else if (shrinkingRight || shrinkingBottom) {
-            // Se tá encolhendo, não tá empurrando ninguém
-            pushRight = false;
-            pushBottom = false;
-          } else {
-            // Parou o mouse! Recupera a direção que estava salva no frame anterior
-            pushRight = prevPreview ? !!prevPreview.pushRight : false;
-            pushBottom = prevPreview ? !!prevPreview.pushBottom : false;
-          }
-
-          // Fallback final: se for o 1º movimento e não captou, desempata pra direita
-          if (!pushRight && !pushBottom) {
-            const diffCols = cols - originalSize.cols;
-            const diffRows = rows - originalSize.rows;
-            if (diffCols > 0 || diffRows > 0) {
-              pushRight = diffCols >= diffRows;
-              pushBottom = diffRows > diffCols;
-            } else {
-              pushRight = true;
-            }
-          }
+          
+          // Pegamos os locks do frame anterior (quem já estava sendo empurrado e para onde)
+          const prevPushData = pushPreviewRef.current || {};
 
           // Tentar calcular push para cada campo colidindo
           const newPush = {};
@@ -694,24 +654,36 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             const bottomB = posB.row + sizeB.rows - 1;
 
             const colide = leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB;
-            if (!colide) continue;
+            
+            // Se a box parou de colidir, o "continue" pula ela. 
+            // Com isso, ela não entra no "newPush" e o lock é apagado automaticamente no final do frame!
+            if (!colide) continue; 
 
-            // Calcular nova posição empurrada
-            let newCol = posB.col;
-            let newRow = posB.row;
+            // ── SISTEMA DE TRAVA DE DIREÇÃO (LOCK) DA SUA IDEIA ──
+            // Verifica se esta box JÁ ESTAVA a ser empurrada no frame anterior
+            let lockedDir = prevPushData[key] ? prevPushData[key].lockedDir : null;
 
-            let tryRight = false;
-            let tryBottom = false;
-
-            if (pushRight && rightA >= leftB && !pushBottom) {
-              tryRight = true;
-            } else if (pushBottom && bottomA >= topB && !pushRight) {
-              tryBottom = true;
-            } else {
-              tryRight = true; // Se der conflito, a preferência padrão é tentar direita
+            // Se é o PRIMEIRO frame de colisão com esta box, decidimos a direção do empurrão e TRAVAMOS
+            if (!lockedDir) {
+              // Comparamos o tamanho atual com o original para decidir a intenção principal do empurrão
+              const diffCols = cols - originalSize.cols;
+              const diffRows = rows - originalSize.rows;
+              
+              // Favorece a direção de maior crescimento. Em empate, vai para a direita.
+              if (diffCols >= diffRows) {
+                lockedDir = 'right';
+              } else {
+                lockedDir = 'bottom';
+              }
             }
 
-            // ── Sistema Inteligente de Fallback ──
+            // Calcular nova posição empurrada baseada ESTRITAMENTE na direção travada
+            let newCol = posB.col;
+            let newRow = posB.row;
+            let tryRight = lockedDir === 'right';
+            let tryBottom = lockedDir === 'bottom';
+
+            // ── Sistema Inteligente de Fallback (mantido para evitar bugs se bater na parede do card) ──
             if (tryRight) {
               newCol = rightA + 1;
               if (newCol + sizeB.cols - 1 > currentSize.cols) {
@@ -726,9 +698,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               }
             }
 
+            // Verificar limites do card final
             if (newCol + sizeB.cols - 1 > currentSize.cols) { canPush = false; break; }
             if (newRow + sizeB.rows - 1 > currentSize.rows - 1) { canPush = false; break; }
 
+            // Verificar colisão com outras boxes que não estão sendo empurradas
             for (const key2 in positions) {
               if (key2 === resizingKey || key2 === key) continue;
               if (newPush[key2]) continue; 
@@ -742,14 +716,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             }
             if (!canPush) break;
 
-            newPush[key] = { col: newCol, row: newRow };
+            // Salva a nova posição e MANTÉM A TRAVA (lockedDir) salva para a próxima renderização
+            newPush[key] = { col: newCol, row: newRow, lockedDir };
           }
 
           const isValid = canPush;
           const hasPush = Object.keys(newPush).length > 0;
 
-          // ── SALVAMOS O PUSHRIGHT E PUSHBOTTOM NO PREVIEW PARA USAR NO PRÓXIMO FRAME ──
-          const newPreview = { cols, rows, isValid, hasPush, pushRight, pushBottom };
+          const newPreview = { cols, rows, isValid, hasPush };
           setFieldResizePreview(newPreview);
           fieldResizePreviewRef.current = newPreview;
 
