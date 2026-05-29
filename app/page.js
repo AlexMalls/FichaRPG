@@ -582,7 +582,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         const ghostH = CELL_H * size.rows + gapY * (size.rows - 1);
 
         let ghostLeft = e.clientX - ghostW / 2;
-        let ghostTop  = e.clientY - 10;
+        let ghostTop  = e.clientY - ghostH / 2;
         if (rect) {
           ghostLeft = Math.max(rect.left, Math.min(ghostLeft, rect.right  - ghostW));
           ghostTop  = Math.max(rect.top,  Math.min(ghostTop,  rect.bottom - ghostH));
