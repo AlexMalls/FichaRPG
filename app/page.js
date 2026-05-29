@@ -357,8 +357,16 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   }, [fieldPositions]);
 
   useEffect(() => {
+    fieldSizesRef.current = fieldSizes;
+  }, [fieldSizes]);
+
+  useEffect(() => {
     selectedFieldsRef.current = selectedFields;
   }, [selectedFields]);
+
+  useEffect(() => {
+    cardSizeRef.current = cardSize;
+  }, [cardSize]);
   
   // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
   const calcCellWidth = useCallback((containerWidth) => {
