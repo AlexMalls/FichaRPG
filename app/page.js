@@ -643,20 +643,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           // Só considera crescimento na direção que mudou neste frame
           const growingRight  = cols > prevCols;
           const growingBottom = rows > prevRows;
-          const shrinkingRight  = cols < prevCols;
-          const shrinkingBottom = rows < prevRows;
 
-          // Diferença acumulada em relação ao tamanho original
-          const diffCols = cols - originalSize.cols;
-          const diffRows = rows - originalSize.rows;
+          const deltaRight  = cols - prevCols;
+          const deltaBottom = rows - prevRows;
 
-          // Direção dominante: usa apenas o crescimento acumulado (ignora shrink)
-          // diffCols e diffRows só são positivos quando cresceu naquela direção
-          const dominantRight  = !growingRight && !growingBottom && diffCols > 0 && diffCols >= diffRows;
-          const dominantBottom = !growingRight && !growingBottom && diffRows > 0 && diffRows > diffCols;
-
-          const pushRight  = growingRight  || dominantRight;
-          const pushBottom = growingBottom || dominantBottom;
+          const pushRight  = growingRight  || (!growingBottom && deltaRight  > 0);
+          const pushBottom = growingBottom || (!growingRight  && deltaBottom > 0);
 
           // Tentar calcular push para cada campo colidindo
           const newPush = {};
