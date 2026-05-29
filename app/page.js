@@ -1188,7 +1188,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   {mapearCamposGrid().map((campo) => {
                     const fieldPos = fieldPositions[campo.key];
                     const fieldSize = fieldSizes[campo.key];
-                    const isCurrentlyDragging = draggingField === campo.key;
+                    const isGroupDrag = selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1;
+                    const isCurrentlyDragging = draggingField === campo.key || (isGroupDrag && selectedFieldsRef.current.includes(campo.key));
                     const isCurrentlyResizing = resizingField === campo.key;
                     const activeFieldSize = isCurrentlyResizing && fieldResizePreview ? fieldResizePreview : fieldSize;
                     
