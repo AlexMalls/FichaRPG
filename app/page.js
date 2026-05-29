@@ -311,6 +311,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── Estado de resize dos campos ──
   const [resizingField, setResizingField] = useState(null);
   const [fieldResizePreview, setFieldResizePreview] = useState(null);
+  const [pushPreview, setPushPreview] = useState({}); 
+  const pushPreviewRef = React.useRef({});
 
   // ── Seleção por área (marquee) ──
   const [selectedFields, setSelectedFields]     = useState([]);
@@ -698,7 +700,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         return;
       }
       
-      // ── IMPEDIR SALVAMENTO NO ARRASTO (NOVO) ──
+      // ── IMPEDIR SALVAMENTO NO ARRASTO ──
       if (isDraggingFieldRef.current) {
         isDraggingFieldRef.current = false;
         const fieldKey = draggingFieldKeyRef.current;
@@ -709,21 +711,17 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const deltaCol = finalHover.col - startPos.col;
           const deltaRow = finalHover.row - startPos.row;
 
-          // Campos a mover: se o campo arrastado está na seleção, move todos; senão move só ele
           const currentSelected = selectedFieldsRef.current;
           const isGroupDrag = currentSelected.includes(fieldKey) && currentSelected.length > 1;
 
           setFieldPositions(prev => {
             if (!isGroupDrag) {
-              // Movimento individual
               return { ...prev, [fieldKey]: { col: finalHover.col, row: finalHover.row } };
             }
 
-            // ── Movimento em grupo: aplica delta em todos os selecionados ──
             const next = { ...prev };
             const currentCardSize = cardSizeRef.current;
 
-            // Primeiro verifica se algum campo sairia dos limites
             const algumForaDoLimite = currentSelected.some(key => {
               const pos = prev[key];
               const size = fieldSizesRef.current[key] || { cols: 1, rows: 1 };
@@ -738,9 +736,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               );
             });
 
-            if (algumForaDoLimite) return prev; // Aborta se qualquer um sairia do limite
+            if (algumForaDoLimite) return prev; 
 
-            // Aplica o delta em todos
             currentSelected.forEach(key => {
               const pos = prev[key];
               if (pos) next[key] = { col: pos.col + deltaCol, row: pos.row + deltaRow };
@@ -759,21 +756,38 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         return;
       }
       
+      // ── SALVAR REDIMENSIONAMENTO E EMPURRÃO DAS CAIXAS ──
       if (isResizingFieldRef.current) {
         isResizingFieldRef.current = false;
         const fieldKey = resizingFieldKeyRef.current;
         const finalPreview = fieldResizePreviewRef.current;
+        const finalPush = pushPreviewRef.current;
         
         if (finalPreview && fieldKey && finalPreview.isValid) {
+          // 1. Salva o novo tamanho da caixa que foi puxada
           setFieldSizes(prev => ({
             ...prev,
             [fieldKey]: { cols: finalPreview.cols, rows: finalPreview.rows }
           }));
+          
+          // 2. Efetiva o empurrão nas outras caixas pra posição nova
+          if (finalPush && Object.keys(finalPush).length > 0) {
+            setFieldPositions(prev => {
+              const next = { ...prev };
+              for (const key in finalPush) {
+                next[key] = { col: finalPush[key].col, row: finalPush[key].row };
+              }
+              return next;
+            });
+          }
         }
         
+        // Limpa tudo
         setResizingField(null);
         setFieldResizePreview(null);
         fieldResizePreviewRef.current = null;
+        setPushPreview({});
+        pushPreviewRef.current = {};
         document.body.classList.remove('is-resizing-field');
         return;
       }
