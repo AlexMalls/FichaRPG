@@ -519,7 +519,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           let targetCols = Math.max(1, Math.min(cell.col - origin.col + 1, GRID_COLS - origin.col + 1));
           let targetRows = Math.max(1, Math.min(cell.row - origin.row + 1, GRID_ROWS - origin.row + 1));
           
-          
           // 1. Descobrir até onde vão as textboxes internas
           let minCols = 1;
           let minRows = 1;
@@ -529,27 +528,24 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           for (const key in positions) {
             const p = positions[key];
             const s = sizes[key] || { cols: 1, rows: 1 };
-            const endCol = p.col + s.cols - 1; // Coluna final desta textbox
-            const endRow = p.row + s.rows - 1; // Linha final desta textbox
+            const endCol = p.col + s.cols - 1;
+            const endRow = p.row + s.rows - 1;
             
             if (endCol > minCols) minCols = endCol;
             if (endRow > minRows) minRows = endRow;
           }
 
-          // 🔽 A CORREÇÃO ENTRA AQUI 🔽
-          // O cabeçalho ocupa 1 linha. Logo, o card precisa da altura dos campos + 1.
           const cardMinRows = minRows + 1;
 
           let overdragRight = false;
           let overdragBottom = false;
 
-          // 2. Travar o tamanho se tentar engolir uma textbox e ativar o "Bounce"
           if (targetCols < minCols) {
             targetCols = minCols;
             overdragRight = true;
           }
-          if (targetRows < cardMinRows) {     // <-- Usa o novo limite (cardMinRows)
-            targetRows = cardMinRows;         // <-- E aqui também
+          if (targetRows < cardMinRows) {
+            targetRows = cardMinRows;
             overdragBottom = true;
           }
 
@@ -558,7 +554,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         }
       }
       
-      // ── ARRASTO LIVRE (SEM COLISÃO ENTRE CAIXAS) ──
+      // ── ARRASTO COM BLOQUEIO DE SOBREPOSIÇÃO (SEM EMPURRAR) ──
       if (isDraggingFieldRef.current) {
         setFieldMousePos({ x: e.clientX, y: e.clientY });
         const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
@@ -566,15 +562,45 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         if (cell) {
           const draggingKey = draggingFieldKeyRef.current;
           const size = fieldSizesRef.current[draggingKey] || { cols: 1, rows: 1 };
+          const positions = fieldPositionsRef.current;
+          const sizes = fieldSizesRef.current;
           const currentCardSize = cardSizeRef.current;
           
+          let hasOverlap = false;
+
+          const leftA = cell.col;
           const rightA = cell.col + size.cols - 1;
+          const topA = cell.row;
           const bottomA = cell.row + size.rows - 1;
 
-          // Bloqueia APENAS se tentar arrastar para fora das bordas do Card
-          const isValid = !(rightA > currentCardSize.cols || bottomA > currentCardSize.rows - 1);
+          // 1. Bloquear se tentar sair do Card
+          if (rightA > currentCardSize.cols || bottomA > currentCardSize.rows - 1) {
+            hasOverlap = true;
+          } else {
+            // 2. Bloquear se bater em outra caixa
+            const currentSelected = selectedFieldsRef.current;
+            const isGroupDrag = currentSelected.includes(draggingKey) && currentSelected.length > 1;
 
-          const newHoverCell = { ...cell, isValid };
+            for (const key in positions) {
+              if (key === draggingKey) continue;
+              if (isGroupDrag && currentSelected.includes(key)) continue;
+
+              const posB = positions[key];
+              const sizeB = sizes[key] || { cols: 1, rows: 1 };
+              
+              const leftB = posB.col;
+              const rightB = posB.col + sizeB.cols - 1;
+              const topB = posB.row;
+              const bottomB = posB.row + sizeB.rows - 1;
+              
+              if (leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB) {
+                hasOverlap = true;
+                break; // Achou uma colisão, já pode parar de procurar e bloquear
+              }
+            }
+          }
+
+          const newHoverCell = { ...cell, isValid: !hasOverlap };
           setFieldHoverCell(newHoverCell);
           fieldHoverCellRef.current = newHoverCell;
         } else {
@@ -583,7 +609,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         }
       }
       
-      // ── DETEÇÃO DE COLISÃO NO REDIMENSIONAMENTO (COM PUSH) ──
+      // ── REDIMENSIONAMENTO COM BLOQUEIO DE SOBREPOSIÇÃO ──
       if (isResizingFieldRef.current) {
         const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
         if (cell) {
@@ -602,23 +628,32 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const topA = origin.row;
           const bottomA = origin.row + rows - 1;
 
-          // ── REDIMENSIONAMENTO LIVRE (SEM COLISÃO/PUSH) ──
+          let hasOverlap = false;
+
+          // Verifica se bateu em alguma outra caixa durante o crescimento
+          for (const key in positions) {
+            if (key === resizingKey) continue;
+            const posB = positions[key];
+            const sizeB = sizes[key] || { cols: 1, rows: 1 };
+            
+            const leftB = posB.col;
+            const rightB = posB.col + sizeB.cols - 1;
+            const topB = posB.row;
+            const bottomB = posB.row + sizeB.rows - 1;
+            
+            if (leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB) {
+              hasOverlap = true;
+              break;
+            }
+          }
           
-          // Verifica apenas se o novo tamanho não ultrapassa os limites externos do Card
+          // Verifica se não ultrapassou os limites do Card e se não bateu em ninguém
           const isWithinCardBounds = (leftA + cols - 1 <= currentSize.cols) && (topA + rows - 1 <= currentSize.rows);
-          
-          // Se quiser que uma caixa não possa ficar em cima da outra, 
-          // você precisaria adicionar uma checagem de sobreposição simples aqui no futuro.
-          // Por enquanto, validamos apenas as bordas do Card.
-          const isValid = isWithinCardBounds;
+          const isValid = isWithinCardBounds && !hasOverlap;
 
           const newPreview = { cols, rows, isValid, hasPush: false };
           setFieldResizePreview(newPreview);
           fieldResizePreviewRef.current = newPreview;
-
-          // Limpamos qualquer rastro da lógica de empurrão
-          setPushPreview({});
-          pushPreviewRef.current = {};
         }
       }
     };
