@@ -577,8 +577,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const topA = cell.row;
           const bottomA = cell.row + size.rows - 1;
 
-          // 1. Bloquear se tentar sair do Card
-          if (rightA > currentCardSize.cols || bottomA > currentCardSize.rows - 1) {
+          // 1. Bloquear se tentar sair do Card (considerando tamanho COMPLETO do campo)
+          if (
+            cell.col < 1 || cell.row < 1 ||
+            rightA > currentCardSize.cols ||
+            bottomA > currentCardSize.rows - 1
+          ) {
             hasOverlap = true;
           } else {
             // 2. Bloquear se bater em outra caixa
@@ -721,12 +725,22 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const isGroupDrag = currentSelected.includes(fieldKey) && currentSelected.length > 1;
 
           setFieldPositions(prev => {
+            const currentCardSize = cardSizeRef.current;
+
             if (!isGroupDrag) {
-              return { ...prev, [fieldKey]: { col: finalHover.col, row: finalHover.row } };
+              const size = fieldSizesRef.current[fieldKey] || { cols: 1, rows: 1 };
+              const newCol = finalHover.col;
+              const newRow = finalHover.row;
+              // ── CORREÇÃO: valida que o campo inteiro cabe dentro do card ──
+              if (
+                newCol < 1 || newRow < 1 ||
+                newCol + size.cols - 1 > currentCardSize.cols ||
+                newRow + size.rows - 1 > currentCardSize.rows - 1
+              ) return prev;
+              return { ...prev, [fieldKey]: { col: newCol, row: newRow } };
             }
 
             const next = { ...prev };
-            const currentCardSize = cardSizeRef.current;
 
             const algumForaDoLimite = currentSelected.some(key => {
               const pos = prev[key];
@@ -742,7 +756,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               );
             });
 
-            if (algumForaDoLimite) return prev; 
+            if (algumForaDoLimite) return prev;
 
             currentSelected.forEach(key => {
               const pos = prev[key];
