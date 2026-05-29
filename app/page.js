@@ -1464,7 +1464,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   const offsetCol = draggedPos ? pos.col - draggedPos.col : 0;
                   const offsetRow = draggedPos ? pos.row - draggedPos.row : 0;
                   const offsetX = offsetCol * (cw + gapX);
-                  const offsetY = offsetRow * (CELL_H + gapY);
+                  cconst offsetY = offsetRow * (CELL_H + gapY);
                   const ghostLeft = fieldMousePos.x - 60 + offsetX;
                   const ghostTop  = fieldMousePos.y - 10 + offsetY;
                   return (
@@ -1495,35 +1495,41 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     </div>
                   );
                 })}
-                {draggingField && !(selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1) && (
-                  <div
-                    style={{
-                      position: 'fixed',
-                      left: `${fieldMousePos.x - 60}px`,
-                      top: `${fieldMousePos.y - 10}px`,
-                      width: '120px',
-                      height: '30px',
-                      background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.25) 0%, rgba(107, 91, 149, 0.25) 100%)',
-                      border: '1px solid rgba(232, 213, 240, 0.4)',
-                      borderRadius: '0.5rem',
-                      padding: '4px 8px',
-                      pointerEvents: 'none',
-                      zIndex: 10000,
-                      opacity: 0.7,
-                      cursor: 'grabbing',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '11px',
-                      color: '#E8D5F0',
-                      fontWeight: '600',
-                      boxShadow: '0 8px 24px rgba(232, 213, 240, 0.25)',
-                    }}
-                  >
-                    {mapearCamposGrid().find(c => c.key === draggingField)?.label}
-                  </div>
-                )}
-
+                {draggingField && !(selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1) && (() => {
+                  const rect = cardGridRef.current?.getBoundingClientRect();
+                  const cw = cellWidth || (rect ? rect.width / activeSize.cols : 80);
+                  const gapX = 14, gapY = 8;
+                  const size = fieldSizes[draggingField] || { cols: 1, rows: 1 };
+                  const ghostW = cw * size.cols + gapX * (size.cols - 1);
+                  const ghostH = CELL_H * size.rows + gapY * (size.rows - 1);
+                  return (
+                    <div
+                      style={{
+                        position: 'fixed',
+                        left: `${fieldMousePos.x - ghostW / 2}px`,
+                        top: `${fieldMousePos.y - 10}px`,
+                        width: `${ghostW}px`,
+                        height: `${ghostH}px`,
+                        background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.25) 0%, rgba(107, 91, 149, 0.25) 100%)',
+                        border: '1px solid rgba(232, 213, 240, 0.4)',
+                        borderRadius: '0.5rem',
+                        pointerEvents: 'none',
+                        zIndex: 10000,
+                        opacity: 0.7,
+                        cursor: 'grabbing',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '11px',
+                        color: '#E8D5F0',
+                        fontWeight: '600',
+                        boxShadow: '0 8px 24px rgba(232, 213, 240, 0.25)',
+                      }}
+                    >
+                      {mapearCamposGrid().find(c => c.key === draggingField)?.label}
+                    </div>
+                  );
+                })()}
                 <button
                   onMouseDown={e => e.stopPropagation()}
                   onClick={() => setCardMovelPos(null)}
