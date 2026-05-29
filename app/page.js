@@ -311,8 +311,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── Estado de resize dos campos ──
   const [resizingField, setResizingField] = useState(null);
   const [fieldResizePreview, setFieldResizePreview] = useState(null);
-  const [pushPreview, setPushPreview] = useState({}); // { [key]: { col, row } } posições fantasma dos empurrados
-  const pushPreviewRef = React.useRef({});
 
   // ── Seleção por área (marquee) ──
   const [selectedFields, setSelectedFields]     = useState([]);
@@ -560,7 +558,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         }
       }
       
-      // ── DETEÇÃO DE COLISÃO NO ARRASTO (NOVO) ──
+      // ── ARRASTO LIVRE (SEM COLISÃO ENTRE CAIXAS) ──
       if (isDraggingFieldRef.current) {
         setFieldMousePos({ x: e.clientX, y: e.clientY });
         const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
@@ -568,45 +566,15 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         if (cell) {
           const draggingKey = draggingFieldKeyRef.current;
           const size = fieldSizesRef.current[draggingKey] || { cols: 1, rows: 1 };
-          const positions = fieldPositionsRef.current;
-          const sizes = fieldSizesRef.current;
           const currentCardSize = cardSizeRef.current;
           
-          let hasOverlap = false;
-
-          const leftA = cell.col;
           const rightA = cell.col + size.cols - 1;
-          const topA = cell.row;
           const bottomA = cell.row + size.rows - 1;
 
-          // 1. Bloquear se a caixa for arrastada para fora dos limites da janela (grid)
-          if (rightA > currentCardSize.cols || bottomA > currentCardSize.rows - 1) {
-            hasOverlap = true;
-          } else {
-            // 2. Bloquear se bater noutra textbox (ignorar campos do mesmo grupo)
-            const currentSelected = selectedFieldsRef.current;
-            const isGroupDrag = currentSelected.includes(draggingKey) && currentSelected.length > 1;
+          // Bloqueia APENAS se tentar arrastar para fora das bordas do Card
+          const isValid = !(rightA > currentCardSize.cols || bottomA > currentCardSize.rows - 1);
 
-            for (const key in positions) {
-              if (key === draggingKey) continue;
-              if (isGroupDrag && currentSelected.includes(key)) continue; // ignora os do grupo
-
-              const posB = positions[key];
-              const sizeB = sizes[key] || { cols: 1, rows: 1 };
-              
-              const leftB = posB.col;
-              const rightB = posB.col + sizeB.cols - 1;
-              const topB = posB.row;
-              const bottomB = posB.row + sizeB.rows - 1;
-              
-              if (leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB) {
-                hasOverlap = true;
-                break;
-              }
-            }
-          }
-
-          const newHoverCell = { ...cell, isValid: !hasOverlap };
+          const newHoverCell = { ...cell, isValid };
           setFieldHoverCell(newHoverCell);
           fieldHoverCellRef.current = newHoverCell;
         } else {
@@ -634,102 +602,23 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const topA = origin.row;
           const bottomA = origin.row + rows - 1;
 
-          // Tamanho original da box antes de começar a arrastar
-          const originalSize = sizes[resizingKey] || { cols: 1, rows: 1 };
+          // ── REDIMENSIONAMENTO LIVRE (SEM COLISÃO/PUSH) ──
           
-          // Pegamos os locks do frame anterior (quem já estava sendo empurrado e para onde)
-          const prevPushData = pushPreviewRef.current || {};
+          // Verifica apenas se o novo tamanho não ultrapassa os limites externos do Card
+          const isWithinCardBounds = (leftA + cols - 1 <= currentSize.cols) && (topA + rows - 1 <= currentSize.rows);
+          
+          // Se quiser que uma caixa não possa ficar em cima da outra, 
+          // você precisaria adicionar uma checagem de sobreposição simples aqui no futuro.
+          // Por enquanto, validamos apenas as bordas do Card.
+          const isValid = isWithinCardBounds;
 
-          // Tentar calcular push para cada campo colidindo
-          const newPush = {};
-          let canPush = true;
-
-          for (const key in positions) {
-            if (key === resizingKey) continue;
-            const posB = positions[key];
-            const sizeB = sizes[key] || { cols: 1, rows: 1 };
-            const leftB  = posB.col;
-            const rightB = posB.col + sizeB.cols - 1;
-            const topB   = posB.row;
-            const bottomB = posB.row + sizeB.rows - 1;
-
-            const colide = leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB;
-            
-            // Se a box parou de colidir, o "continue" pula ela. 
-            // Com isso, ela não entra no "newPush" e o lock é apagado automaticamente no final do frame!
-            if (!colide) continue; 
-
-            // ── SISTEMA DE TRAVA DE DIREÇÃO (LOCK) DA SUA IDEIA ──
-            // Verifica se esta box JÁ ESTAVA a ser empurrada no frame anterior
-            let lockedDir = prevPushData[key] ? prevPushData[key].lockedDir : null;
-
-            // Se é o PRIMEIRO frame de colisão com esta box, decidimos a direção do empurrão e TRAVAMOS
-            if (!lockedDir) {
-              // Comparamos o tamanho atual com o original para decidir a intenção principal do empurrão
-              const diffCols = cols - originalSize.cols;
-              const diffRows = rows - originalSize.rows;
-              
-              // Favorece a direção de maior crescimento. Em empate, vai para a direita.
-              if (diffCols >= diffRows) {
-                lockedDir = 'right';
-              } else {
-                lockedDir = 'bottom';
-              }
-            }
-
-            // Calcular nova posição empurrada baseada ESTRITAMENTE na direção travada
-            let newCol = posB.col;
-            let newRow = posB.row;
-            let tryRight = lockedDir === 'right';
-            let tryBottom = lockedDir === 'bottom';
-
-            // ── Sistema Inteligente de Fallback (mantido para evitar bugs se bater na parede do card) ──
-            if (tryRight) {
-              newCol = rightA + 1;
-              if (newCol + sizeB.cols - 1 > currentSize.cols) {
-                newCol = posB.col; 
-                newRow = bottomA + 1; 
-              }
-            } else if (tryBottom) {
-              newRow = bottomA + 1;
-              if (newRow + sizeB.rows - 1 > currentSize.rows - 1) {
-                newRow = posB.row; 
-                newCol = rightA + 1; 
-              }
-            }
-
-            // Verificar limites do card final
-            if (newCol + sizeB.cols - 1 > currentSize.cols) { canPush = false; break; }
-            if (newRow + sizeB.rows - 1 > currentSize.rows - 1) { canPush = false; break; }
-
-            // Verificar colisão com outras boxes que não estão sendo empurradas
-            for (const key2 in positions) {
-              if (key2 === resizingKey || key2 === key) continue;
-              if (newPush[key2]) continue; 
-              const posC = positions[key2];
-              const sizeC = sizes[key2] || { cols: 1, rows: 1 };
-              const colideC = newCol <= posC.col + sizeC.cols - 1 &&
-                              newCol + sizeB.cols - 1 >= posC.col &&
-                              newRow <= posC.row + sizeC.rows - 1 &&
-                              newRow + sizeB.rows - 1 >= posC.row;
-              if (colideC) { canPush = false; break; }
-            }
-            if (!canPush) break;
-
-            // Salva a nova posição e MANTÉM A TRAVA (lockedDir) salva para a próxima renderização
-            newPush[key] = { col: newCol, row: newRow, lockedDir };
-          }
-
-          const isValid = canPush;
-          const hasPush = Object.keys(newPush).length > 0;
-
-          const newPreview = { cols, rows, isValid, hasPush };
+          const newPreview = { cols, rows, isValid, hasPush: false };
           setFieldResizePreview(newPreview);
           fieldResizePreviewRef.current = newPreview;
 
-          const pushData = isValid && hasPush ? newPush : {};
-          setPushPreview(pushData);
-          pushPreviewRef.current = pushData;
+          // Limpamos qualquer rastro da lógica de empurrão
+          setPushPreview({});
+          pushPreviewRef.current = {};
         }
       }
     };
@@ -816,30 +705,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
             if (algumForaDoLimite) return prev; // Aborta se qualquer um sairia do limite
 
-            // Verifica colisão com campos NÃO selecionados
-            const naoSelecionados = Object.keys(prev).filter(k => !currentSelected.includes(k));
-            const algumColide = currentSelected.some(keyA => {
-              const posA = prev[keyA];
-              const sizeA = fieldSizesRef.current[keyA] || { cols: 1, rows: 1 };
-              if (!posA) return false;
-              const newColA = posA.col + deltaCol;
-              const newRowA = posA.row + deltaRow;
-
-              return naoSelecionados.some(keyB => {
-                const posB = prev[keyB];
-                const sizeB = fieldSizesRef.current[keyB] || { cols: 1, rows: 1 };
-                if (!posB) return false;
-                return (
-                  newColA <= posB.col + sizeB.cols - 1 &&
-                  newColA + sizeA.cols - 1 >= posB.col &&
-                  newRowA <= posB.row + sizeB.rows - 1 &&
-                  newRowA + sizeA.rows - 1 >= posB.row
-                );
-              });
-            });
-
-            if (algumColide) return prev; // Aborta se houver colisão
-
             // Aplica o delta em todos
             currentSelected.forEach(key => {
               const pos = prev[key];
@@ -863,30 +728,17 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         isResizingFieldRef.current = false;
         const fieldKey = resizingFieldKeyRef.current;
         const finalPreview = fieldResizePreviewRef.current;
-        const finalPush = pushPreviewRef.current;
         
         if (finalPreview && fieldKey && finalPreview.isValid) {
           setFieldSizes(prev => ({
             ...prev,
             [fieldKey]: { cols: finalPreview.cols, rows: finalPreview.rows }
           }));
-          // Aplica o push nas boxes empurradas
-          if (finalPush && Object.keys(finalPush).length > 0) {
-            setFieldPositions(prev => {
-              const next = { ...prev };
-              for (const key in finalPush) {
-                next[key] = { col: finalPush[key].col, row: finalPush[key].row };
-              }
-              return next;
-            });
-          }
         }
         
         setResizingField(null);
         setFieldResizePreview(null);
         fieldResizePreviewRef.current = null;
-        setPushPreview({});
-        pushPreviewRef.current = {};
         document.body.classList.remove('is-resizing-field');
         return;
       }
@@ -1414,30 +1266,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                       }}
                     />
                   )}
-
-                  {/* Fantasmas de push durante resize */}
-                  {resizingField && Object.keys(pushPreview).length > 0 && Object.entries(pushPreview).map(([key, ghostPos]) => {
-                    const size = fieldSizes[key] || { cols: 1, rows: 1 };
-                    return (
-                      <div
-                        key={`push-ghost-${key}`}
-                        style={{
-                          gridColumn: `${ghostPos.col} / span ${size.cols}`,
-                          gridRow: `${ghostPos.row} / span ${size.rows}`,
-                          margin: '0px',
-                          marginTop: '6px',
-                          borderRadius: '0.5rem',
-                          background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(245, 158, 11, 0.12) 100%)',
-                          border: '2px dashed rgba(251, 191, 36, 0.6)',
-                          boxShadow: '0 0 12px rgba(251, 191, 36, 0.2)',
-                          transition: 'all 0.1s ease',
-                          pointerEvents: 'none',
-                          zIndex: 4,
-                          opacity: 0.8,
-                        }}
-                      />
-                    );
-                  })}
 
                   {/* Preview das células enquanto redimensiona um campo */}
                   {resizingField && fieldResizePreview && (
