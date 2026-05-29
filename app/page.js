@@ -625,10 +625,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const currentSize = cardSizeRef.current;
           const resizingKey = resizingFieldKeyRef.current;
           
-          // ── CORREÇÃO: limita cols/rows para não ultrapassar a borda do card ──
           const maxCols = currentSize.cols - origin.col + 1;
           const maxRows = (currentSize.rows - 1) - origin.row + 1;
           
+          // ── CORREÇÃO: clamp DURO — o preview nunca cresce além da borda ──
           const cols = Math.max(1, Math.min(cell.col - origin.col + 1, maxCols));
           const rows = Math.max(1, Math.min(cell.row - origin.row + 1, maxRows));
           
@@ -642,7 +642,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
           let hasOverlap = false;
 
-          // Verifica se bateu em alguma outra caixa durante o crescimento
           for (const key in positions) {
             if (key === resizingKey) continue;
             const posB = positions[key];
@@ -659,9 +658,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             }
           }
           
-          // Verifica se não ultrapassou os limites do Card e se não bateu em ninguém
-          const isWithinCardBounds = (leftA + cols - 1 <= currentSize.cols) && (topA + rows - 1 <= currentSize.rows);
-          const isValid = isWithinCardBounds && !hasOverlap;
+          // ── Borda já foi clamped acima, só invalida se bater em outra caixa ──
+          const isValid = !hasOverlap;
 
           const newPreview = { cols, rows, isValid, hasPush: false };
           setFieldResizePreview(newPreview);
