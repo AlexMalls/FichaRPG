@@ -1172,7 +1172,9 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     const isGroupDrag = selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1;
                     const isCurrentlyDragging = draggingField === campo.key || (isGroupDrag && selectedFieldsRef.current.includes(campo.key));
                     const isCurrentlyResizing = resizingField === campo.key;
-                    const activeFieldSize = isCurrentlyResizing && fieldResizePreview ? fieldResizePreview : fieldSize;
+                    
+                    // ── MANTÉM O TAMANHO ORIGINAL DURANTE O RESIZE PARA A CAIXA NÃO PULAR ──
+                    const activeFieldSize = fieldSize;
                     
                     const isSelected = selectedFields.includes(campo.key);
 
@@ -1303,36 +1305,46 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   )}
 
                   {/* Preview das células enquanto redimensiona um campo */}
-                  {resizingField && fieldResizePreview && (
-                    <div
-                      style={{
-                        gridColumn: `${fieldPositions[resizingField].col} / span ${fieldResizePreview.cols}`,
-                        gridRow: `${fieldPositions[resizingField].row} / span ${fieldResizePreview.rows}`,
-                        margin: '0px',
-                        marginTop: '24px',
-                        height: fieldResizePreview.rows === 1 
-                          ? 'calc(100% - 6px - 16px)' 
-                          : 'calc(100% - 6px - 20px)',
-                        borderRadius: '0.3rem',
-                        
-                        background: fieldResizePreview.isValid 
-                          ? 'linear-gradient(135deg, rgba(74, 222, 128, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%)' 
-                          : 'linear-gradient(135deg, rgba(248, 113, 113, 0.18) 0%, rgba(220, 38, 38, 0.18) 100%)',
-                        
-                        border: fieldResizePreview.isValid 
-                          ? '2px solid rgba(74, 222, 128, 0.85)' 
-                          : '2px solid rgba(248, 113, 113, 0.85)',
-                        
-                        boxShadow: fieldResizePreview.isValid 
-                          ? '0 0 16px rgba(74, 222, 128, 0.35)' 
-                          : '0 0 16px rgba(248, 113, 113, 0.35)',
-        
-                        transition: 'all 0.1s ease',
-                        pointerEvents: 'none',
-                        zIndex: 5,
-                      }}
-                    />
-                  )}
+                  {resizingField && fieldResizePreview && (() => {
+                    // Calculamos a largura e altura exatas em pixels baseadas no grid para animar suavemente
+                    const rect = cardGridRef.current?.getBoundingClientRect();
+                    const cw = cellWidth || (rect ? rect.width / activeSize.cols : 80);
+                    const gapX = 14, gapY = 8;
+                    const pos = fieldPositions[resizingField];
+                    
+                    const leftPx = (pos.col - 1) * (cw + gapX);
+                    const topPx = (pos.row - 1) * (CELL_H + gapY) + 6; 
+                    
+                    const wPx = cw * fieldResizePreview.cols + gapX * (fieldResizePreview.cols - 1);
+                    const hPx = (CELL_H * fieldResizePreview.rows) + (gapY * (fieldResizePreview.rows - 1)) - 6;
+
+                    return (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: `${leftPx}px`,
+                          top: `${topPx}px`,
+                          width: `${wPx}px`,
+                          height: `${hPx}px`,
+                          borderRadius: '0.5rem',
+                          background: fieldResizePreview.isValid 
+                            ? 'linear-gradient(135deg, rgba(74, 222, 128, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%)' 
+                            : 'linear-gradient(135deg, rgba(248, 113, 113, 0.18) 0%, rgba(220, 38, 38, 0.18) 100%)',
+                          border: fieldResizePreview.isValid 
+                            ? '2px solid rgba(74, 222, 128, 0.85)' 
+                            : '2px solid rgba(248, 113, 113, 0.85)',
+                          boxShadow: fieldResizePreview.isValid 
+                            ? '0 0 16px rgba(74, 222, 128, 0.35)' 
+                            : '0 0 16px rgba(248, 113, 113, 0.35)',
+                          
+                          // ✨ AQUI ESTÁ A MÁGICA DA FLUIDEZ ✨
+                          transition: 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease',
+                          pointerEvents: 'none',
+                          zIndex: 5,
+                        }}
+                      />
+                    );
+                  })()}
 
                   {/* Retângulo de seleção marquee */}
                   {marquee && (
