@@ -581,10 +581,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           if (rightA > currentCardSize.cols || bottomA > currentCardSize.rows - 1) {
             hasOverlap = true;
           } else {
-            // 2. Bloquear se bater noutra textbox
+            // 2. Bloquear se bater noutra textbox (ignorar campos do mesmo grupo)
+            const currentSelected = selectedFieldsRef.current;
+            const isGroupDrag = currentSelected.includes(draggingKey) && currentSelected.length > 1;
+
             for (const key in positions) {
               if (key === draggingKey) continue;
-              
+              if (isGroupDrag && currentSelected.includes(key)) continue; // ignora os do grupo
+
               const posB = positions[key];
               const sizeB = sizes[key] || { cols: 1, rows: 1 };
               
