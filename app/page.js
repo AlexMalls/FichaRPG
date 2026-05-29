@@ -311,6 +311,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── Estado de resize dos campos ──
   const [resizingField, setResizingField] = useState(null);
   const [fieldResizePreview, setFieldResizePreview] = useState(null);
+  const [pushPreview, setPushPreview] = useState({}); // { [key]: { col, row } } posições fantasma dos empurrados
+  const pushPreviewRef = React.useRef({});
 
   // ── Seleção por área (marquee) ──
   const [selectedFields, setSelectedFields]     = useState([]);
@@ -613,7 +615,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         }
       }
       
-      // ── DETEÇÃO DE COLISÃO NO REDIMENSIONAMENTO ──
+      // ── DETEÇÃO DE COLISÃO NO REDIMENSIONAMENTO (COM PUSH) ──
       if (isResizingFieldRef.current) {
         const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
         if (cell) {
@@ -624,7 +626,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const cols = Math.max(1, Math.min(cell.col - origin.col + 1, currentSize.cols - origin.col + 1));
           const rows = Math.max(1, Math.min(cell.row - origin.row + 1, (currentSize.rows - 1) - origin.row + 1));
           
-          let hasOverlap = false;
           const positions = fieldPositionsRef.current;
           const sizes = fieldSizesRef.current;
 
@@ -633,26 +634,69 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const topA = origin.row;
           const bottomA = origin.row + rows - 1;
 
+          // Detectar direção do resize (crescendo pra direita ou pra baixo)
+          const originalSize = sizes[resizingKey] || { cols: 1, rows: 1 };
+          const growingRight  = cols > originalSize.cols;
+          const growingBottom = rows > originalSize.rows;
+
+          // Tentar calcular push para cada campo colidindo
+          const newPush = {};
+          let canPush = true;
+
           for (const key in positions) {
-            if (key === resizingKey) continue; 
-            
+            if (key === resizingKey) continue;
             const posB = positions[key];
             const sizeB = sizes[key] || { cols: 1, rows: 1 };
-            
-            const leftB = posB.col;
+            const leftB  = posB.col;
             const rightB = posB.col + sizeB.cols - 1;
-            const topB = posB.row;
+            const topB   = posB.row;
             const bottomB = posB.row + sizeB.rows - 1;
-            
-            if (leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB) {
-              hasOverlap = true;
-              break; 
+
+            const colide = leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB;
+            if (!colide) continue;
+
+            // Calcular nova posição empurrada
+            let newCol = posB.col;
+            let newRow = posB.row;
+
+            if (growingRight && rightA >= leftB) {
+              newCol = rightA + 1;
             }
+            if (growingBottom && bottomA >= topB) {
+              newRow = bottomA + 1;
+            }
+
+            // Verificar se a nova posição cabe no card
+            if (newCol + sizeB.cols - 1 > currentSize.cols) { canPush = false; break; }
+            if (newRow + sizeB.rows - 1 > currentSize.rows - 1) { canPush = false; break; }
+
+            // Verificar se a nova posição colide com outros campos (que não estão sendo empurrados)
+            for (const key2 in positions) {
+              if (key2 === resizingKey || key2 === key) continue;
+              if (newPush[key2]) continue; // já será empurrado
+              const posC = positions[key2];
+              const sizeC = sizes[key2] || { cols: 1, rows: 1 };
+              const colideC = newCol <= posC.col + sizeC.cols - 1 &&
+                              newCol + sizeB.cols - 1 >= posC.col &&
+                              newRow <= posC.row + sizeC.rows - 1 &&
+                              newRow + sizeB.rows - 1 >= posC.row;
+              if (colideC) { canPush = false; break; }
+            }
+            if (!canPush) break;
+
+            newPush[key] = { col: newCol, row: newRow };
           }
 
-          const newPreview = { cols, rows, isValid: !hasOverlap };
-          setFieldResizePreview(newPreview); 
+          const isValid = canPush;
+          const hasPush = Object.keys(newPush).length > 0;
+
+          const newPreview = { cols, rows, isValid, hasPush };
+          setFieldResizePreview(newPreview);
           fieldResizePreviewRef.current = newPreview;
+
+          const pushData = isValid && hasPush ? newPush : {};
+          setPushPreview(pushData);
+          pushPreviewRef.current = pushData;
         }
       }
     };
@@ -786,17 +830,30 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         isResizingFieldRef.current = false;
         const fieldKey = resizingFieldKeyRef.current;
         const finalPreview = fieldResizePreviewRef.current;
+        const finalPush = pushPreviewRef.current;
         
         if (finalPreview && fieldKey && finalPreview.isValid) {
           setFieldSizes(prev => ({
             ...prev,
             [fieldKey]: { cols: finalPreview.cols, rows: finalPreview.rows }
           }));
+          // Aplica o push nas boxes empurradas
+          if (finalPush && Object.keys(finalPush).length > 0) {
+            setFieldPositions(prev => {
+              const next = { ...prev };
+              for (const key in finalPush) {
+                next[key] = { col: finalPush[key].col, row: finalPush[key].row };
+              }
+              return next;
+            });
+          }
         }
         
         setResizingField(null);
         setFieldResizePreview(null);
         fieldResizePreviewRef.current = null;
+        setPushPreview({});
+        pushPreviewRef.current = {};
         document.body.classList.remove('is-resizing-field');
         return;
       }
@@ -1324,6 +1381,30 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                       }}
                     />
                   )}
+
+                  {/* Fantasmas de push durante resize */}
+                  {resizingField && Object.keys(pushPreview).length > 0 && Object.entries(pushPreview).map(([key, ghostPos]) => {
+                    const size = fieldSizes[key] || { cols: 1, rows: 1 };
+                    return (
+                      <div
+                        key={`push-ghost-${key}`}
+                        style={{
+                          gridColumn: `${ghostPos.col} / span ${size.cols}`,
+                          gridRow: `${ghostPos.row} / span ${size.rows}`,
+                          margin: '0px',
+                          marginTop: '6px',
+                          borderRadius: '0.5rem',
+                          background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(245, 158, 11, 0.12) 100%)',
+                          border: '2px dashed rgba(251, 191, 36, 0.6)',
+                          boxShadow: '0 0 12px rgba(251, 191, 36, 0.2)',
+                          transition: 'all 0.1s ease',
+                          pointerEvents: 'none',
+                          zIndex: 4,
+                          opacity: 0.8,
+                        }}
+                      />
+                    );
+                  })}
 
                   {/* Preview das células enquanto redimensiona um campo */}
                   {resizingField && fieldResizePreview && (
