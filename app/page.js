@@ -1464,7 +1464,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   const offsetCol = draggedPos ? pos.col - draggedPos.col : 0;
                   const offsetRow = draggedPos ? pos.row - draggedPos.row : 0;
                   const offsetX = offsetCol * (cw + gapX);
-                  cconst offsetY = offsetRow * (CELL_H + gapY);
+                  const offsetY = offsetRow * (CELL_H + gapY);
                   const ghostLeft = fieldMousePos.x - 60 + offsetX;
                   const ghostTop  = fieldMousePos.y - 10 + offsetY;
                   return (
