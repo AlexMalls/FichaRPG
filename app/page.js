@@ -415,17 +415,19 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     const relY = y - rect.top;
     if (relX < 0 || relY < 0) return null;
     
-    // Calcular com base na largura disponível
     const availableWidth = rect.width;
     const cellW = cellWidth || (availableWidth / activeSize.cols);
-    const gapX = 14; // gap do grid interno é 14px
-    const gapY = 8;  // rowGap do grid interno é 8px
+    const gapX = 14;
+    const gapY = 8;
     
     const col = Math.floor(relX / (cellW + gapX)) + 1;
     const row = Math.floor(relY / (CELL_H + gapY)) + 1;
     
-    if (col < 1 || col > activeSize.cols || row < 1 || row > activeSize.rows - 1) return null;
-    return { col, row };
+    // ── CORREÇÃO: clamp para nunca sair dos limites do card ──
+    const clampedCol = Math.max(1, Math.min(col, activeSize.cols));
+    const clampedRow = Math.max(1, Math.min(row, activeSize.rows - 1));
+    
+    return { col: clampedCol, row: clampedRow };
   };
 
   const getOriginCellFromGhost = (mouseX, mouseY) => {
@@ -619,8 +621,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const currentSize = cardSizeRef.current;
           const resizingKey = resizingFieldKeyRef.current;
           
-          const cols = Math.max(1, Math.min(cell.col - origin.col + 1, currentSize.cols - origin.col + 1));
-          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, (currentSize.rows - 1) - origin.row + 1));
+          // ── CORREÇÃO: limita cols/rows para não ultrapassar a borda do card ──
+          const maxCols = currentSize.cols - origin.col + 1;
+          const maxRows = (currentSize.rows - 1) - origin.row + 1;
+          
+          const cols = Math.max(1, Math.min(cell.col - origin.col + 1, maxCols));
+          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, maxRows));
           
           const positions = fieldPositionsRef.current;
           const sizes = fieldSizesRef.current;
