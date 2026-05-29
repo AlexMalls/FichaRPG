@@ -643,11 +643,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           // Só considera crescimento na direção que mudou neste frame
           const growingRight  = cols > prevCols;
           const growingBottom = rows > prevRows;
+          
           // Se nenhuma mudou neste frame, usa a diferença acumulada mas só a maior
           const diffCols = cols - originalSize.cols;
           const diffRows = rows - originalSize.rows;
-          const dominantRight  = !growingRight && !growingBottom && diffCols > diffRows;
-          const dominantBottom = !growingRight && !growingBottom && diffRows >= diffCols;
+          
+          // ── CORREÇÃO 1: Favorecer a direita em caso de empate (>=) ──
+          const dominantRight  = !growingRight && !growingBottom && diffCols >= diffRows;
+          const dominantBottom = !growingRight && !growingBottom && diffRows > diffCols;
 
           const pushRight  = growingRight  || dominantRight;
           const pushBottom = growingBottom || dominantBottom;
@@ -672,20 +675,36 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             let newCol = posB.col;
             let newRow = posB.row;
 
+            let tryRight = false;
+            let tryBottom = false;
+
             if (pushRight && rightA >= leftB && !pushBottom) {
-              newCol = rightA + 1;
+              tryRight = true;
             } else if (pushBottom && bottomA >= topB && !pushRight) {
-              newRow = bottomA + 1;
+              tryBottom = true;
             } else if (pushRight && pushBottom) {
-              // Ambos crescendo: usa a direção dominante pela magnitude
-              if (diffCols >= diffRows) {
-                newCol = rightA + 1;
-              } else {
-                newRow = bottomA + 1;
+              if (diffCols >= diffRows) tryRight = true;
+              else tryBottom = true;
+            }
+
+            // ── CORREÇÃO 2: Sistema Inteligente de Fallback ──
+            if (tryRight) {
+              newCol = rightA + 1;
+              // Se a caixa empurrada bater na parede direita do Card...
+              if (newCol + sizeB.cols - 1 > currentSize.cols) {
+                newCol = posB.col; // Cancela o empurrão para a direita
+                newRow = bottomA + 1; // Fallback: empurra para baixo da box que redimensionou!
+              }
+            } else if (tryBottom) {
+              newRow = bottomA + 1;
+              // Se a caixa empurrada bater no chão do Card...
+              if (newRow + sizeB.rows - 1 > currentSize.rows - 1) {
+                newRow = posB.row; // Cancela o empurrão para baixo
+                newCol = rightA + 1; // Fallback: tenta empurrar para a direita!
               }
             }
 
-            // Verificar se a nova posição cabe no card
+            // Verificar se a nova posição cabe no card após os fallbacks
             if (newCol + sizeB.cols - 1 > currentSize.cols) { canPush = false; break; }
             if (newRow + sizeB.rows - 1 > currentSize.rows - 1) { canPush = false; break; }
 
