@@ -640,20 +640,45 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const prevCols = prevPreview ? prevPreview.cols : originalSize.cols;
           const prevRows = prevPreview ? prevPreview.rows : originalSize.rows;
 
-          // Só considera crescimento na direção que mudou neste frame
+          // Em qual direção o redimensionamento ACABOU de acontecer (neste milissegundo)?
           const growingRight  = cols > prevCols;
           const growingBottom = rows > prevRows;
-          
-          // Se nenhuma mudou neste frame, usa a diferença acumulada mas só a maior
-          const diffCols = cols - originalSize.cols;
-          const diffRows = rows - originalSize.rows;
-          
-          // ── CORREÇÃO 1: Favorecer a direita em caso de empate (>=) ──
-          const dominantRight  = !growingRight && !growingBottom && diffCols >= diffRows;
-          const dominantBottom = !growingRight && !growingBottom && diffRows > diffCols;
+          const shrinkingRight = cols < prevCols;
+          const shrinkingBottom = rows < prevRows;
 
-          const pushRight  = growingRight  || dominantRight;
-          const pushBottom = growingBottom || dominantBottom;
+          let pushRight = false;
+          let pushBottom = false;
+
+          // ── A MÁGICA: Esquece o tamanho inicial, foca no movimento ATUAL ──
+          if (growingRight && !growingBottom) {
+            pushRight = true;
+          } else if (growingBottom && !growingRight) {
+            pushBottom = true;
+          } else if (growingRight && growingBottom) {
+            // Se cresceu pros dois lados num frame só (raro), usa o maior delta
+            pushRight = (cols - prevCols) >= (rows - prevRows);
+            pushBottom = !pushRight;
+          } else if (shrinkingRight || shrinkingBottom) {
+            // Se tá encolhendo, não tá empurrando ninguém
+            pushRight = false;
+            pushBottom = false;
+          } else {
+            // Parou o mouse! Recupera a direção que estava salva no frame anterior
+            pushRight = prevPreview ? !!prevPreview.pushRight : false;
+            pushBottom = prevPreview ? !!prevPreview.pushBottom : false;
+          }
+
+          // Fallback final: se for o 1º movimento e não captou, desempata pra direita
+          if (!pushRight && !pushBottom) {
+            const diffCols = cols - originalSize.cols;
+            const diffRows = rows - originalSize.rows;
+            if (diffCols > 0 || diffRows > 0) {
+              pushRight = diffCols >= diffRows;
+              pushBottom = diffRows > diffCols;
+            } else {
+              pushRight = true;
+            }
+          }
 
           // Tentar calcular push para cada campo colidindo
           const newPush = {};
@@ -682,36 +707,31 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               tryRight = true;
             } else if (pushBottom && bottomA >= topB && !pushRight) {
               tryBottom = true;
-            } else if (pushRight && pushBottom) {
-              if (diffCols >= diffRows) tryRight = true;
-              else tryBottom = true;
+            } else {
+              tryRight = true; // Se der conflito, a preferência padrão é tentar direita
             }
 
-            // ── CORREÇÃO 2: Sistema Inteligente de Fallback ──
+            // ── Sistema Inteligente de Fallback ──
             if (tryRight) {
               newCol = rightA + 1;
-              // Se a caixa empurrada bater na parede direita do Card...
               if (newCol + sizeB.cols - 1 > currentSize.cols) {
-                newCol = posB.col; // Cancela o empurrão para a direita
-                newRow = bottomA + 1; // Fallback: empurra para baixo da box que redimensionou!
+                newCol = posB.col; 
+                newRow = bottomA + 1; 
               }
             } else if (tryBottom) {
               newRow = bottomA + 1;
-              // Se a caixa empurrada bater no chão do Card...
               if (newRow + sizeB.rows - 1 > currentSize.rows - 1) {
-                newRow = posB.row; // Cancela o empurrão para baixo
-                newCol = rightA + 1; // Fallback: tenta empurrar para a direita!
+                newRow = posB.row; 
+                newCol = rightA + 1; 
               }
             }
 
-            // Verificar se a nova posição cabe no card após os fallbacks
             if (newCol + sizeB.cols - 1 > currentSize.cols) { canPush = false; break; }
             if (newRow + sizeB.rows - 1 > currentSize.rows - 1) { canPush = false; break; }
 
-            // Verificar se a nova posição colide com outros campos (que não estão sendo empurrados)
             for (const key2 in positions) {
               if (key2 === resizingKey || key2 === key) continue;
-              if (newPush[key2]) continue; // já será empurrado
+              if (newPush[key2]) continue; 
               const posC = positions[key2];
               const sizeC = sizes[key2] || { cols: 1, rows: 1 };
               const colideC = newCol <= posC.col + sizeC.cols - 1 &&
@@ -728,7 +748,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const isValid = canPush;
           const hasPush = Object.keys(newPush).length > 0;
 
-          const newPreview = { cols, rows, isValid, hasPush };
+          // ── SALVAMOS O PUSHRIGHT E PUSHBOTTOM NO PREVIEW PARA USAR NO PRÓXIMO FRAME ──
+          const newPreview = { cols, rows, isValid, hasPush, pushRight, pushBottom };
           setFieldResizePreview(newPreview);
           fieldResizePreviewRef.current = newPreview;
 
