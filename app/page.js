@@ -634,10 +634,23 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const topA = origin.row;
           const bottomA = origin.row + rows - 1;
 
-          // Detectar direção do resize (crescendo pra direita ou pra baixo)
+          // Detectar direção PRINCIPAL do resize comparando com o preview anterior
           const originalSize = sizes[resizingKey] || { cols: 1, rows: 1 };
-          const growingRight  = cols > originalSize.cols;
-          const growingBottom = rows > originalSize.rows;
+          const prevPreview = fieldResizePreviewRef.current;
+          const prevCols = prevPreview ? prevPreview.cols : originalSize.cols;
+          const prevRows = prevPreview ? prevPreview.rows : originalSize.rows;
+
+          // Só considera crescimento na direção que mudou neste frame
+          const growingRight  = cols > prevCols;
+          const growingBottom = rows > prevRows;
+          // Se nenhuma mudou neste frame, usa a diferença acumulada mas só a maior
+          const diffCols = cols - originalSize.cols;
+          const diffRows = rows - originalSize.rows;
+          const dominantRight  = !growingRight && !growingBottom && diffCols > diffRows;
+          const dominantBottom = !growingRight && !growingBottom && diffRows >= diffCols;
+
+          const pushRight  = growingRight  || dominantRight;
+          const pushBottom = growingBottom || dominantBottom;
 
           // Tentar calcular push para cada campo colidindo
           const newPush = {};
@@ -659,11 +672,17 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             let newCol = posB.col;
             let newRow = posB.row;
 
-            if (growingRight && rightA >= leftB) {
+            if (pushRight && rightA >= leftB && !pushBottom) {
               newCol = rightA + 1;
-            }
-            if (growingBottom && bottomA >= topB) {
+            } else if (pushBottom && bottomA >= topB && !pushRight) {
               newRow = bottomA + 1;
+            } else if (pushRight && pushBottom) {
+              // Ambos crescendo: usa a direção dominante pela magnitude
+              if (diffCols >= diffRows) {
+                newCol = rightA + 1;
+              } else {
+                newRow = bottomA + 1;
+              }
             }
 
             // Verificar se a nova posição cabe no card
