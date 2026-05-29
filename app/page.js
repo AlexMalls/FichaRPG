@@ -643,12 +643,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           // Só considera crescimento na direção que mudou neste frame
           const growingRight  = cols > prevCols;
           const growingBottom = rows > prevRows;
-
+          // Se nenhuma mudou neste frame, usa a diferença acumulada mas só a maior
           const diffCols = cols - originalSize.cols;
           const diffRows = rows - originalSize.rows;
+          const dominantRight  = !growingRight && !growingBottom && diffCols > diffRows;
+          const dominantBottom = !growingRight && !growingBottom && diffRows >= diffCols;
 
-          const pushRight  = cols > 1 && diffCols >= diffRows;
-          const pushBottom = rows > 1 && diffRows > diffCols;
+          const pushRight  = growingRight  || dominantRight;
+          const pushBottom = growingBottom || dominantBottom;
 
           // Tentar calcular push para cada campo colidindo
           const newPush = {};
@@ -675,6 +677,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             } else if (pushBottom && bottomA >= topB && !pushRight) {
               newRow = bottomA + 1;
             } else if (pushRight && pushBottom) {
+              // Ambos crescendo: usa a direção dominante pela magnitude
               if (diffCols >= diffRows) {
                 newCol = rightA + 1;
               } else {
