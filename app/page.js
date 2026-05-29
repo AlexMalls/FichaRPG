@@ -676,7 +676,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               newRow = bottomA + 1;
             } else if (pushRight && pushBottom) {
               // Ambos crescendo: usa a direção dominante pela magnitude
-              if (diffCols >= diffRows) {
+              if (deltaRight >= deltaBottom) {
                 newCol = rightA + 1;
               } else {
                 newRow = bottomA + 1;
