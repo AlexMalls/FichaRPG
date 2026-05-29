@@ -644,11 +644,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const growingRight  = cols > prevCols;
           const growingBottom = rows > prevRows;
 
-          const deltaRight  = cols - prevCols;
-          const deltaBottom = rows - prevRows;
+          const diffCols = cols - originalSize.cols;
+          const diffRows = rows - originalSize.rows;
 
-          const pushRight  = growingRight  || (!growingBottom && deltaRight  > 0);
-          const pushBottom = growingBottom || (!growingRight  && deltaBottom > 0);
+          const pushRight  = cols > 1 && diffCols >= diffRows;
+          const pushBottom = rows > 1 && diffRows > diffCols;
 
           // Tentar calcular push para cada campo colidindo
           const newPush = {};
@@ -675,8 +675,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             } else if (pushBottom && bottomA >= topB && !pushRight) {
               newRow = bottomA + 1;
             } else if (pushRight && pushBottom) {
-              // Ambos crescendo: usa a direção dominante pela magnitude
-              if (deltaRight >= deltaBottom) {
+              if (diffCols >= diffRows) {
                 newCol = rightA + 1;
               } else {
                 newRow = bottomA + 1;
