@@ -569,23 +569,47 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       // ── ARRASTO COM BLOQUEIO DE SOBREPOSIÇÃO (SEM EMPURRAR) ──
       if (isDraggingFieldRef.current) {
         setFieldMousePos({ x: e.clientX, y: e.clientY });
-        const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
-        
+
+        const draggingKey = draggingFieldKeyRef.current;
+        const size = fieldSizesRef.current[draggingKey] || { cols: 1, rows: 1 };
+        const currentCardSize = cardSizeRef.current;
+
+        // ── Calcula posição do canto superior esquerdo do fantasma ──
+        const rect = cardGridRef.current?.getBoundingClientRect();
+        const cw = cellWidth || (rect ? rect.width / currentCardSize.cols : 80);
+        const gapX = 14, gapY = 8;
+        const ghostW = cw * size.cols + gapX * (size.cols - 1);
+        const ghostH = CELL_H * size.rows + gapY * (size.rows - 1);
+
+        let ghostLeft = e.clientX - ghostW / 2;
+        let ghostTop  = e.clientY - 10;
+        if (rect) {
+          ghostLeft = Math.max(rect.left, Math.min(ghostLeft, rect.right  - ghostW));
+          ghostTop  = Math.max(rect.top,  Math.min(ghostTop,  rect.bottom - ghostH));
+        }
+
+        // ── Converte posição do fantasma para célula do grid interno ──
+        const cell = rect ? (() => {
+          const relX = ghostLeft - rect.left;
+          const relY = ghostTop  - rect.top;
+          const col = Math.floor(relX / (cw + gapX)) + 1;
+          const row = Math.floor(relY / (CELL_H + gapY)) + 1;
+          const clampedCol = Math.max(1, Math.min(col, currentCardSize.cols  - size.cols  + 1));
+          const clampedRow = Math.max(1, Math.min(row, currentCardSize.rows - 1 - size.rows + 1));
+          return { col: clampedCol, row: clampedRow };
+        })() : null;
+
         if (cell) {
-          const draggingKey = draggingFieldKeyRef.current;
-          const size = fieldSizesRef.current[draggingKey] || { cols: 1, rows: 1 };
           const positions = fieldPositionsRef.current;
           const sizes = fieldSizesRef.current;
-          const currentCardSize = cardSizeRef.current;
-          
-          let hasOverlap = false;
 
-          const leftA = cell.col;
+          const leftA  = cell.col;
           const rightA = cell.col + size.cols - 1;
-          const topA = cell.row;
+          const topA   = cell.row;
           const bottomA = cell.row + size.rows - 1;
 
-          // 1. Bloquear se tentar sair do Card (considerando tamanho COMPLETO do campo)
+          let hasOverlap = false;
+
           if (
             cell.col < 1 || cell.row < 1 ||
             rightA > currentCardSize.cols ||
@@ -593,7 +617,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           ) {
             hasOverlap = true;
           } else {
-            // 2. Bloquear se bater em outra caixa
             const currentSelected = selectedFieldsRef.current;
             const isGroupDrag = currentSelected.includes(draggingKey) && currentSelected.length > 1;
 
@@ -601,17 +624,17 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               if (key === draggingKey) continue;
               if (isGroupDrag && currentSelected.includes(key)) continue;
 
-              const posB = positions[key];
+              const posB  = positions[key];
               const sizeB = sizes[key] || { cols: 1, rows: 1 };
-              
-              const leftB = posB.col;
+
+              const leftB  = posB.col;
               const rightB = posB.col + sizeB.cols - 1;
-              const topB = posB.row;
+              const topB   = posB.row;
               const bottomB = posB.row + sizeB.rows - 1;
-              
+
               if (leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB) {
                 hasOverlap = true;
-                break; // Achou uma colisão, já pode parar de procurar e bloquear
+                break;
               }
             }
           }
