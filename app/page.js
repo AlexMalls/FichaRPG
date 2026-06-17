@@ -198,7 +198,7 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 );
 
 // ============ COMPONENTE DE INPUT PARA O GRID INTERNO ============
-const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode }) => (
+const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode, fontSize, onIncreaseFont, onDecreaseFont }) => (
   <div style={{
     display: 'flex',
     flexDirection: 'column',
@@ -206,22 +206,31 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
     height: '100%',
     gap: '2px',
   }}>
-    <label 
-      style={{
-        ...styles.gridFieldLabel,
-        cursor: isViewMode ? 'default' : 'grab',
-        userSelect: 'none',
-        padding: '1px 2px',
-        borderRadius: '2px',
-        transition: 'all 0.15s ease',
-      }}
-      onMouseDown={isViewMode ? undefined : onLabelMouseDown}
-      title={isViewMode ? undefined : "Arraste para reorganizar"}
-    >
-      {label}
-    </label>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <label 
+        style={{
+          ...styles.gridFieldLabel,
+          cursor: isViewMode ? 'default' : 'grab',
+          userSelect: 'none',
+          padding: '1px 2px',
+          borderRadius: '2px',
+          transition: 'all 0.15s ease',
+        }}
+        onMouseDown={isViewMode ? undefined : onLabelMouseDown}
+        title={isViewMode ? undefined : "Arraste para reorganizar"}
+      >
+        {label}
+      </label>
+      {!isViewMode && (
+        <div style={styles.fontControls} onMouseDown={e => e.stopPropagation()}>
+          <span style={styles.fontControlIcon} title="Tamanho da fonte">T</span>
+          <button type="button" onClick={onIncreaseFont} style={styles.fontControlBtn} title="Aumentar fonte">▲</button>
+          <button type="button" onClick={onDecreaseFont} style={styles.fontControlBtn} title="Diminuir fonte">▼</button>
+        </div>
+      )}
+    </div>
     {isViewMode ? (
-      <div style={styles.gridFieldText}>{value}</div>
+      <div style={{ ...styles.gridFieldText, fontSize: `${fontSize}rem` }}>{value}</div>
     ) : (
       <input
         type="text"
@@ -230,7 +239,7 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
         placeholder={placeholder}
         onClick={e => e.stopPropagation()}
         onMouseDown={e => e.stopPropagation()}
-        style={styles.gridFieldInput}
+        style={{ ...styles.gridFieldInput, fontSize: `${fontSize}rem` }}
       />
     )}
   </div>
@@ -305,6 +314,30 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     idade: { cols: 1, rows: 1 },
     xp: { cols: 1, rows: 1 },
   });
+
+  // ── Tamanho da fonte de cada campo (em rem) ──
+  const [fieldFontSizes, setFieldFontSizes] = useState(ficha?.fieldFontSizes || {
+    nome: 1.0,
+    classe: 1.0,
+    nivel: 1.0,
+    alinhamento: 1.0,
+    idade: 1.0,
+    xp: 1.0,
+  });
+
+  const handleIncreaseFont = (key) => {
+    setFieldFontSizes(prev => ({
+      ...prev,
+      [key]: Math.min((prev[key] || 1.0) + 0.1, 3.0)
+    }));
+  };
+
+  const handleDecreaseFont = (key) => {
+    setFieldFontSizes(prev => ({
+      ...prev,
+      [key]: Math.max((prev[key] || 1.0) - 0.1, 0.5)
+    }));
+  };
 
   const [cardOverdrag, setCardOverdrag] = useState({ right: false, bottom: false });
 
@@ -1118,7 +1151,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             </button>
 
             <button 
-              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize, fieldPositions, fieldSizes, ...fichaData })} 
+              onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize, fieldPositions, fieldSizes, fieldFontSizes, ...fichaData })} 
               style={{
                 ...styles.buttonPrimary,
                 marginTop: '0.5rem',
@@ -1301,6 +1334,9 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           placeholder={campo.placeholder}
                           onLabelMouseDown={handleFieldMouseDown(campo.key)}
                           isViewMode={isViewMode}
+                          fontSize={fieldFontSizes[campo.key] || 1.0}
+                          onIncreaseFont={() => handleIncreaseFont(campo.key)}
+                          onDecreaseFont={() => handleDecreaseFont(campo.key)}
                         />
                         
                         {/* Botão de resize no canto inferior direito */}
@@ -2461,6 +2497,30 @@ const styles = {
     overflow: 'hidden',
     whiteSpace: 'nowrap',
     textOverflow: 'ellipsis',
+  },
+  fontControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '3px',
+    flexShrink: 0,
+  },
+  fontControlIcon: {
+    fontSize: '0.65rem',
+    fontWeight: '700',
+    color: '#E8D5F0',
+    opacity: 0.6,
+    userSelect: 'none',
+  },
+  fontControlBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#E8D5F0',
+    fontSize: '0.55rem',
+    cursor: 'pointer',
+    padding: '0 1px',
+    opacity: 0.6,
+    lineHeight: 1,
+    transition: 'opacity 0.15s ease',
   },
 
   // ============ CARD EXPANDÍVEL ============
