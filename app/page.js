@@ -1387,7 +1387,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     const pos = fieldPositions[resizingField];
                     
                     const leftPx = (pos.col - 1) * (cw + gapX);
-                    const topPx = (pos.row - 1) * (CELL_H + gapY) + 26; 
+                    const topPx = (pos.row - 1) * (CELL_H + gapY) + 22; 
                     
                     // ⬇️ MEXA AQUI: Ajuste a LARGURA do preview verde (ex: adicione ou remova pixels no final)
                     const wPx = cw * fieldResizePreview.cols + gapX * (fieldResizePreview.cols - 1);
