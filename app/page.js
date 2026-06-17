@@ -584,11 +584,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         let ghostLeft = e.clientX - ghostW / 2;
         let ghostTop  = e.clientY - ghostH / 2;
         
-        // ── Converte posição do CURSOR (centro) para célula do grid interno ANTES de clampar ──
+        // ── Célula calculada pela posição DIRETA do cursor, não pela borda do fantasma ──
+        // Isso elimina o "atraso" de quase uma célula inteira: a célula muda
+        // exatamente quando o cursor entra nela, igual ao que os olhos veem.
         const cell = rect ? (() => {
-          // Usar cursor direto, não a posição clamped do fantasma
-          const relX = e.clientX - rect.left - ghostW / 2;
-          const relY = e.clientY - rect.top  - ghostH / 2;
+          const relX = e.clientX - rect.left;
+          const relY = e.clientY - rect.top;
           const col = Math.floor(relX / (cw + gapX)) + 1;
           const row = Math.floor(relY / (CELL_H + gapY)) + 1;
           const clampedCol = Math.max(1, Math.min(col, currentCardSize.cols  - size.cols  + 1));
@@ -596,7 +597,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           return { col: clampedCol, row: clampedRow };
         })() : null;
 
-        // ── Agora clamp o fantasma DEPOIS de calcular a célula ──
+        // ── Clamp do fantasma (só visual, não afeta mais o cálculo da célula) ──
         if (rect) {
           ghostLeft = Math.max(rect.left, Math.min(ghostLeft, rect.right  - ghostW));
           ghostTop  = Math.max(rect.top,  Math.min(ghostTop,  rect.bottom - ghostH));
@@ -1545,7 +1546,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
                   // ── Clamp: mantém o fantasma dentro do cardGrid ──
                   let rawLeft = fieldMousePos.x - ghostW / 2;
-                  let rawTop  = fieldMousePos.y - 10;
+                  let rawTop  = fieldMousePos.y - ghostH / 2;
                   if (rect) {
                     rawLeft = Math.max(rect.left, Math.min(rawLeft, rect.right  - ghostW));
                     rawTop  = Math.max(rect.top,  Math.min(rawTop,  rect.bottom - ghostH));
