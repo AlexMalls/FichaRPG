@@ -1356,27 +1356,65 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     />
                   )}
 
-                  {/* Preview das células enquanto redimensiona um campo */}
-                  {resizingField && fieldResizePreview && (() => {
-                    // Calculamos a largura e altura exatas em pixels baseadas no grid para animar suavemente
+                  {/* Preview das células enquanto redimensiona um campo — GRUPO */}
+                  {resizingField && fieldResizePreview && selectedFieldsRef.current.includes(resizingField) && selectedFieldsRef.current.length > 1 &&
+                    selectedFieldsRef.current.map(key => {
+                      const pos = fieldPositions[key];
+                      const rect = cardGridRef.current?.getBoundingClientRect();
+                      const cw = cellWidth || (rect ? rect.width / activeSize.cols : 80);
+                      const gapX = 14, gapY = 8;
+                      
+                      const leftPx = (pos.col - 1) * (cw + gapX);
+                      const customTopMargin = 18;
+                      const topPx = (pos.row - 1) * (CELL_H + gapY) + customTopMargin;
+                      
+                      const wPx = cw * fieldResizePreview.cols + gapX * (fieldResizePreview.cols - 1);
+                      const gridAreaHeight = (CELL_H * fieldResizePreview.rows) + (gapY * (fieldResizePreview.rows - 1));
+                      const actualFieldHeight = Math.max(CELL_H, gridAreaHeight - 6);
+                      const hPx = actualFieldHeight + 6 - customTopMargin - 2;
+
+                      return (
+                        <div
+                          key={`resize-preview-${key}`}
+                          style={{
+                            position: 'absolute',
+                            left: `${leftPx}px`,
+                            top: `${topPx}px`,
+                            width: `${wPx}px`,
+                            height: `${hPx}px`,
+                            borderRadius: '0.5rem',
+                            background: fieldResizePreview.isValid 
+                              ? 'linear-gradient(135deg, rgba(74, 222, 128, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%)' 
+                              : 'linear-gradient(135deg, rgba(248, 113, 113, 0.18) 0%, rgba(220, 38, 38, 0.18) 100%)',
+                            border: fieldResizePreview.isValid 
+                              ? '2px solid rgba(74, 222, 128, 0.85)' 
+                              : '2px solid rgba(248, 113, 113, 0.85)',
+                            boxShadow: fieldResizePreview.isValid 
+                              ? '0 0 16px rgba(74, 222, 128, 0.35)' 
+                              : '0 0 16px rgba(248, 113, 113, 0.35)',
+                            transition: 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease',
+                            pointerEvents: 'none',
+                            zIndex: 5,
+                          }}
+                        />
+                      );
+                    })
+                  }
+
+                  {/* Preview das células enquanto redimensiona um campo — INDIVIDUAL */}
+                  {resizingField && fieldResizePreview && !(selectedFieldsRef.current.includes(resizingField) && selectedFieldsRef.current.length > 1) && (() => {
+                    const pos = fieldPositions[resizingField];
                     const rect = cardGridRef.current?.getBoundingClientRect();
                     const cw = cellWidth || (rect ? rect.width / activeSize.cols : 80);
                     const gapX = 14, gapY = 8;
-                    const pos = fieldPositions[resizingField];
                     
                     const leftPx = (pos.col - 1) * (cw + gapX);
-
-                    // 1. Define o recuo do topo que você escolheu (18px)
                     const customTopMargin = 18;
-                    const topPx = (pos.row - 1) * (CELL_H + gapY) + customTopMargin; 
+                    const topPx = (pos.row - 1) * (CELL_H + gapY) + customTopMargin;
                     
                     const wPx = cw * fieldResizePreview.cols + gapX * (fieldResizePreview.cols - 1);
-                    
-                    // 2. Calcula a área crua do grid e a altura verdadeira do campo (corrigindo o bug do minHeight: 40px)
                     const gridAreaHeight = (CELL_H * fieldResizePreview.rows) + (gapY * (fieldResizePreview.rows - 1));
                     const actualFieldHeight = Math.max(CELL_H, gridAreaHeight - 6);
-                    
-                    // 3. Calcula hPx para bater perfeitamente no limite inferior, compensando a margem superior
                     const hPx = actualFieldHeight + 6 - customTopMargin - 2;
 
                     return (
@@ -1397,8 +1435,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           boxShadow: fieldResizePreview.isValid 
                             ? '0 0 16px rgba(74, 222, 128, 0.35)' 
                             : '0 0 16px rgba(248, 113, 113, 0.35)',
-                          
-                          // ✨ AQUI ESTÁ A MÁGICA DA FLUIDEZ ✨
                           transition: 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease',
                           pointerEvents: 'none',
                           zIndex: 5,
