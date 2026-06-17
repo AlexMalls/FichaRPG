@@ -664,46 +664,39 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
         if (cell) {
           const origin = fieldResizeOrigin.current;
-          const currentSize = cardSizeRef.current;
           const resizingKey = resizingFieldKeyRef.current;
+          const isGroupResize = selectedFieldsRef.current.includes(resizingKey);
           
-          const maxCols = currentSize.cols - origin.col + 1;
-          const maxRows = (currentSize.rows - 1) - origin.row + 1;
-          
-          // ── CORREÇÃO: clamp DURO — o preview nunca cresce além da borda ──
-          const cols = Math.max(1, Math.min(cell.col - origin.col + 1, maxCols));
-          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, maxRows));
+          const targetCols = Math.max(1, cell.col - origin.col + 1);
+          const targetRows = Math.max(1, cell.row - origin.row + 1);
           
           const positions = fieldPositionsRef.current;
           const sizes = fieldSizesRef.current;
 
-          const leftA = origin.col;
-          const rightA = origin.col + cols - 1;
-          const topA = origin.row;
-          const bottomA = origin.row + rows - 1;
-
           let hasOverlap = false;
-
-          for (const key in positions) {
-            if (key === resizingKey) continue;
-            const posB = positions[key];
-            const sizeB = sizes[key] || { cols: 1, rows: 1 };
-            
-            const leftB = posB.col;
-            const rightB = posB.col + sizeB.cols - 1;
-            const topB = posB.row;
-            const bottomB = posB.row + sizeB.rows - 1;
-            
-            if (leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB) {
-              hasOverlap = true;
-              break;
-            }
-          }
+          const keysToCheck = isGroupResize ? selectedFieldsRef.current : [resizingKey];
           
-          // ── Borda já foi clamped acima, só invalida se bater em outra caixa ──
-          const isValid = !hasOverlap;
+          keysToCheck.forEach(key => {
+            const pos = positions[key];
+            const rightA = pos.col + targetCols - 1;
+            const bottomA = pos.row + targetRows - 1;
 
-          const newPreview = { cols, rows, isValid, hasPush: false };
+            if (rightA > cardSizeRef.current.cols || bottomA > cardSizeRef.current.rows - 1) {
+              hasOverlap = true;
+            }
+
+            for (const otherKey in positions) {
+              if (keysToCheck.includes(otherKey)) continue;
+              const posB = positions[otherKey];
+              const sizeB = sizes[otherKey];
+              if (pos.col <= posB.col + sizeB.cols - 1 && rightA >= posB.col && 
+                  pos.row <= posB.row + sizeB.rows - 1 && bottomA >= posB.row) {
+                hasOverlap = true;
+              }
+            }
+          });
+
+          const newPreview = { cols: targetCols, rows: targetRows, isValid: !hasOverlap };
           setFieldResizePreview(newPreview);
           fieldResizePreviewRef.current = newPreview;
         }
@@ -806,7 +799,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             return next;
           });
         }
-
         setDraggingField(null);
         setFieldMousePos({ x: 0, y: 0 });
         setFieldHoverCell(null);
@@ -816,38 +808,29 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         return;
       }
       
-      // ── SALVAR REDIMENSIONAMENTO E EMPURRÃO DAS CAIXAS ──
+      // ── SALVAR REDIMENSIONAMENTO ──
       if (isResizingFieldRef.current) {
         isResizingFieldRef.current = false;
         const fieldKey = resizingFieldKeyRef.current;
         const finalPreview = fieldResizePreviewRef.current;
-        const finalPush = pushPreviewRef.current;
+        const isGroupResize = selectedFieldsRef.current.includes(fieldKey);
         
+        // Aplica redimensionamento se o preview for válido
         if (finalPreview && fieldKey && finalPreview.isValid) {
-          // 1. Salva o novo tamanho da caixa que foi puxada
-          setFieldSizes(prev => ({
-            ...prev,
-            [fieldKey]: { cols: finalPreview.cols, rows: finalPreview.rows }
-          }));
+          const newSize = { cols: finalPreview.cols, rows: finalPreview.rows };
+          const keysToUpdate = isGroupResize ? selectedFieldsRef.current : [fieldKey];
           
-          // 2. Efetiva o empurrão nas outras caixas pra posição nova
-          if (finalPush && Object.keys(finalPush).length > 0) {
-            setFieldPositions(prev => {
-              const next = { ...prev };
-              for (const key in finalPush) {
-                next[key] = { col: finalPush[key].col, row: finalPush[key].row };
-              }
-              return next;
-            });
-          }
+          setFieldSizes(prev => {
+            const next = { ...prev };
+            keysToUpdate.forEach(k => next[k] = newSize);
+            return next;
+          });
         }
         
-        // Limpa tudo
+        // Limpa estados de redimensionamento
         setResizingField(null);
         setFieldResizePreview(null);
         fieldResizePreviewRef.current = null;
-        setPushPreview({});
-        pushPreviewRef.current = {};
         document.body.classList.remove('is-resizing-field');
         return;
       }
@@ -1012,19 +995,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     e.stopPropagation();
     if (!cardGridRef.current) return;
     
-    const fieldPos = fieldPositions[fieldKey];
-    if (!fieldPos) return;
-    
     resizingFieldKeyRef.current = fieldKey;
-    fieldResizeOrigin.current = { col: fieldPos.col, row: fieldPos.row };
+    fieldResizeOrigin.current = { col: fieldPositions[fieldKey].col, row: fieldPositions[fieldKey].row };
     
-    // ── CORREÇÃO: Forçar isValid: true no momento do clique inicial ──
     const initialSize = fieldSizes[fieldKey] || { cols: 1, rows: 1 };
     const initialPreview = { ...initialSize, isValid: true };
     
     setFieldResizePreview(initialPreview);
     fieldResizePreviewRef.current = initialPreview; 
-    // ─────────────────────────────────────────────────────────────────
     
     setResizingField(fieldKey);
     isResizingFieldRef.current = true;
