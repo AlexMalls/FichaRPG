@@ -198,52 +198,69 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 );
 
 // ============ COMPONENTE DE INPUT PARA O GRID INTERNO ============
-const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode, fontSize, onIncreaseFont, onDecreaseFont }) => (
-  <div style={{
-    display: 'flex',
-    flexDirection: 'column',
-    width: '100%',
-    height: '100%',
-    gap: '2px',
-  }}>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <label 
-        style={{
-          ...styles.gridFieldLabel,
-          cursor: isViewMode ? 'default' : 'grab',
-          userSelect: 'none',
-          padding: '1px 2px',
-          borderRadius: '2px',
-          transition: 'all 0.15s ease',
-        }}
-        onMouseDown={isViewMode ? undefined : onLabelMouseDown}
-        title={isViewMode ? undefined : "Arraste para reorganizar"}
-      >
-        {label}
-      </label>
-      {!isViewMode && (
-        <div style={styles.fontControls} onMouseDown={e => e.stopPropagation()}>
-          <span style={styles.fontControlIcon} title="Tamanho da fonte">T</span>
-          <button type="button" onClick={onIncreaseFont} style={styles.fontControlBtn} title="Aumentar fonte">▲</button>
-          <button type="button" onClick={onDecreaseFont} style={styles.fontControlBtn} title="Diminuir fonte">▼</button>
-        </div>
+const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode, fontSize, onIncreaseFont, onDecreaseFont, maxHeight }) => {
+  const textareaRef = React.useRef(null);
+
+  const handleChange = (e) => {
+    const el = e.target;
+    const prevValue = value;
+    // Aplica o valor temporariamente pra medir; se passar do limite, reverte
+    onChange(e);
+    requestAnimationFrame(() => {
+      if (el && maxHeight && el.scrollHeight > maxHeight) {
+        // Reverte para o valor anterior se ultrapassar a altura da box
+        onChange({ target: { value: prevValue } });
+      }
+    });
+  };
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      width: '100%',
+      height: '100%',
+      gap: '2px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <label 
+          style={{
+            ...styles.gridFieldLabel,
+            cursor: isViewMode ? 'default' : 'grab',
+            userSelect: 'none',
+            padding: '1px 2px',
+            borderRadius: '2px',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseDown={isViewMode ? undefined : onLabelMouseDown}
+          title={isViewMode ? undefined : "Arraste para reorganizar"}
+        >
+          {label}
+        </label>
+        {!isViewMode && (
+          <div style={styles.fontControls} onMouseDown={e => e.stopPropagation()}>
+            <span style={styles.fontControlIcon} title="Tamanho da fonte">T</span>
+            <button type="button" onClick={onIncreaseFont} style={styles.fontControlBtn} title="Aumentar fonte">▲</button>
+            <button type="button" onClick={onDecreaseFont} style={styles.fontControlBtn} title="Diminuir fonte">▼</button>
+          </div>
+        )}
+      </div>
+      {isViewMode ? (
+        <div style={{ ...styles.gridFieldText, fontSize: `${fontSize}rem` }}>{value}</div>
+      ) : (
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={handleChange}
+          placeholder={placeholder}
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          style={{ ...styles.gridFieldInput, fontSize: `${fontSize}rem`, resize: 'none', overflow: 'hidden' }}
+        />
       )}
     </div>
-    {isViewMode ? (
-      <div style={{ ...styles.gridFieldText, fontSize: `${fontSize}rem` }}>{value}</div>
-    ) : (
-      <input
-        type="text"
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        onClick={e => e.stopPropagation()}
-        onMouseDown={e => e.stopPropagation()}
-        style={{ ...styles.gridFieldInput, fontSize: `${fontSize}rem` }}
-      />
-    )}
-  </div>
-);
+  );
+};
 
 // ============ PÁGINA DE VISUALIZAÇÃO DA FICHA ============
 
@@ -1337,6 +1354,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           fontSize={fieldFontSizes[campo.key] || 1.0}
                           onIncreaseFont={() => handleIncreaseFont(campo.key)}
                           onDecreaseFont={() => handleDecreaseFont(campo.key)}
+                          maxHeight={(activeFieldSize.rows * CELL_H) + (8 * (activeFieldSize.rows - 1)) - 18}
                         />
                         
                         {/* Botão de resize no canto inferior direito */}
@@ -2482,6 +2500,8 @@ const styles = {
     transition: 'all 0.2s ease',
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
     boxSizing: 'border-box',
+    wordWrap: 'break-word',
+    whiteSpace: 'pre-wrap',
   },
   gridFieldText: {
     width: '100%',
@@ -2492,11 +2512,9 @@ const styles = {
     fontSize: '1.0rem',
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
     boxSizing: 'border-box',
-    display: 'flex',
-    alignItems: 'center',
     overflow: 'hidden',
-    whiteSpace: 'nowrap',
-    textOverflow: 'ellipsis',
+    wordWrap: 'break-word',
+    whiteSpace: 'pre-wrap',
   },
   fontControls: {
     display: 'flex',
