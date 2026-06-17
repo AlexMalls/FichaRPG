@@ -419,6 +419,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── Refs para detecção de colisão ──
   const fieldPositionsRef = React.useRef(fieldPositions);
   const fieldSizesRef = React.useRef(fieldSizes);
+  const fichaDataRef = React.useRef(fichaData);
+  const fieldFontSizesRef = React.useRef(fieldFontSizes);
 
   // Mantém as Refs atualizadas com o state mais recente
   useEffect(() => {
@@ -430,12 +432,45 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   }, [fieldSizes]);
 
   useEffect(() => {
+    fichaDataRef.current = fichaData;
+  }, [fichaData]);
+
+  useEffect(() => {
+    fieldFontSizesRef.current = fieldFontSizes;
+  }, [fieldFontSizes]);
+
+  useEffect(() => {
     selectedFieldsRef.current = selectedFields;
   }, [selectedFields]);
 
   useEffect(() => {
     cardSizeRef.current = cardSize;
   }, [cardSize]);
+
+  // ── Mede a altura necessária para um texto, dada largura/fonte (usa elemento oculto reutilizável) ──
+  const measureRef = React.useRef(null);
+  const medirAlturaTexto = (texto, larguraPx, fontSizeRem) => {
+    if (!measureRef.current) {
+      const el = document.createElement('div');
+      el.style.position = 'absolute';
+      el.style.visibility = 'hidden';
+      el.style.zIndex = '-1';
+      el.style.top = '-9999px';
+      el.style.left = '-9999px';
+      el.style.boxSizing = 'border-box';
+      el.style.wordWrap = 'break-word';
+      el.style.whiteSpace = 'pre-wrap';
+      el.style.padding = '2px 6px';
+      el.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+      document.body.appendChild(el);
+      measureRef.current = el;
+    }
+    const el = measureRef.current;
+    el.style.width = `${larguraPx}px`;
+    el.style.fontSize = `${fontSizeRem}rem`;
+    el.textContent = texto || '';
+    return el.scrollHeight;
+  };
   
   // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
   const calcCellWidth = useCallback((containerWidth) => {
@@ -768,9 +803,22 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               break;
             }
           }
+
+          // ── Verifica se o texto atual ainda cabe no novo tamanho ──
+          let textoNaoCabe = false;
+          const cw = cellWidth || 80;
+          const gapX = 14;
+          const larguraPx = cw * cols + gapX * (cols - 1);
+          const alturaDisponivel = (CELL_H * rows) + (8 * (rows - 1)) - 18;
+          const texto = fichaDataRef.current[resizingKey];
+          const fonte = fieldFontSizesRef.current[resizingKey] || 1.0;
+          const alturaNecessaria = medirAlturaTexto(texto, larguraPx, fonte);
+          if (alturaNecessaria > alturaDisponivel) {
+            textoNaoCabe = true;
+          }
           
-          // ── Borda já foi clamped acima, só invalida se bater em outra caixa ──
-          const isValid = !hasOverlap;
+          // ── Borda já foi clamped acima, só invalida se bater em outra caixa ou texto não couber ──
+          const isValid = !hasOverlap && !textoNaoCabe;
 
           const newPreview = { cols, rows, isValid, hasPush: false };
           setFieldResizePreview(newPreview);
