@@ -222,7 +222,21 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
       height: '100%',
       gap: '2px',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none',
+          cursor: isViewMode ? 'default' : 'grab',
+          minHeight: '16px',
+          flexShrink: 0,
+        }}
+        onMouseDown={isViewMode ? undefined : onLabelMouseDown}
+      >
         <label 
           style={{
             ...styles.gridFieldLabel,
@@ -231,8 +245,8 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
             padding: '1px 2px',
             borderRadius: '2px',
             transition: 'all 0.15s ease',
+            pointerEvents: 'none',
           }}
-          onMouseDown={isViewMode ? undefined : onLabelMouseDown}
           title={isViewMode ? undefined : "Arraste para reorganizar"}
         >
           {label}
