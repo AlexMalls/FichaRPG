@@ -574,6 +574,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         const size = fieldSizesRef.current[draggingKey] || { cols: 1, rows: 1 };
         const currentCardSize = cardSizeRef.current;
 
+        // Detecta se é um arrasto em grupo logo aqui
+        const currentSelected = selectedFieldsRef.current;
+        const isGroupDrag = currentSelected.includes(draggingKey) && currentSelected.length > 1;
+
         // ── Calcula posição do canto superior esquerdo do fantasma ──
         const rect = cardGridRef.current?.getBoundingClientRect();
         const cw = cellWidth || (rect ? rect.width / currentCardSize.cols : 80);
@@ -581,24 +585,30 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         const ghostW = cw * size.cols + gapX * (size.cols - 1);
         const ghostH = CELL_H * size.rows + gapY * (size.rows - 1);
 
-        let ghostLeft = e.clientX - ghostW / 2;
-        let ghostTop  = e.clientY - ghostH / 2;
+        // Se for grupo, o fantasma segue outra métrica (clientX - 60), senão, fica centralizado
+        let ghostLeft = isGroupDrag ? e.clientX - 60 : e.clientX - ghostW / 2;
+        let ghostTop  = isGroupDrag ? e.clientY - 10 : e.clientY - ghostH / 2;
         
-        // ── Célula calculada pela posição DIRETA do cursor, não pela borda do fantasma ──
-        // Isso elimina o "atraso" de quase uma célula inteira: a célula muda
-        // exatamente quando o cursor entra nela, igual ao que os olhos veem.
+        // ── Célula calculada SEMPRE pela posição superior esquerda do fantasma ──
+        // Usamos o topo-esquerdo do fantasma + metade da largura da célula para o "snap",
+        // garantindo que a box amarela alinhe perfeitamente por onde o fantasma real transita.
         const cell = rect ? (() => {
-          const relX = e.clientX - rect.left;
-          const relY = e.clientY - rect.top;
-          const col = Math.floor(relX / (cw + gapX)) + 1;
-          const row = Math.floor(relY / (CELL_H + gapY)) + 1;
+          const relX = ghostLeft - rect.left;
+          const relY = ghostTop - rect.top;
+          
+          const snapX = relX + (cw / 2);
+          const snapY = relY + (CELL_H / 2);
+
+          const col = Math.floor(snapX / (cw + gapX)) + 1;
+          const row = Math.floor(snapY / (CELL_H + gapY)) + 1;
+          
           const clampedCol = Math.max(1, Math.min(col, currentCardSize.cols  - size.cols  + 1));
           const clampedRow = Math.max(1, Math.min(row, currentCardSize.rows - 1 - size.rows + 1));
           return { col: clampedCol, row: clampedRow };
         })() : null;
 
         // ── Clamp do fantasma (só visual, não afeta mais o cálculo da célula) ──
-        if (rect) {
+        if (rect && !isGroupDrag) {
           ghostLeft = Math.max(rect.left, Math.min(ghostLeft, rect.right  - ghostW));
           ghostTop  = Math.max(rect.top,  Math.min(ghostTop,  rect.bottom - ghostH));
         }
@@ -621,9 +631,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           ) {
             hasOverlap = true;
           } else {
-            const currentSelected = selectedFieldsRef.current;
-            const isGroupDrag = currentSelected.includes(draggingKey) && currentSelected.length > 1;
-
             for (const key in positions) {
               if (key === draggingKey) continue;
               if (isGroupDrag && currentSelected.includes(key)) continue;
