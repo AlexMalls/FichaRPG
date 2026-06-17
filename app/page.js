@@ -1387,13 +1387,19 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     const pos = fieldPositions[resizingField];
                     
                     const leftPx = (pos.col - 1) * (cw + gapX);
-                    const topPx = (pos.row - 1) * (CELL_H + gapY) + 18; 
+
+                    // 1. Define o recuo do topo que você escolheu (18px)
+                    const customTopMargin = 18;
+                    const topPx = (pos.row - 1) * (CELL_H + gapY) + customTopMargin; 
                     
-                    // ⬇️ MEXA AQUI: Ajuste a LARGURA do preview verde (ex: adicione ou remova pixels no final)
                     const wPx = cw * fieldResizePreview.cols + gapX * (fieldResizePreview.cols - 1);
                     
-                    // ⬇️ MEXA AQUI: Ajuste a ALTURA do preview verde (atualmente o padrão tira 6px)
-                    const hPx = (CELL_H * fieldResizePreview.rows) + (gapY * (fieldResizePreview.rows - 1)) - 18;
+                    // 2. Calcula a área crua do grid e a altura verdadeira do campo (corrigindo o bug do minHeight: 40px)
+                    const gridAreaHeight = (CELL_H * fieldResizePreview.rows) + (gapY * (fieldResizePreview.rows - 1));
+                    const actualFieldHeight = Math.max(CELL_H, gridAreaHeight - 6);
+                    
+                    // 3. Calcula hPx para bater perfeitamente no limite inferior, compensando a margem superior
+                    const hPx = actualFieldHeight + 6 - customTopMargin - 2;
 
                     return (
                       <div
