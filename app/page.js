@@ -1389,8 +1389,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     const leftPx = (pos.col - 1) * (cw + gapX);
                     const topPx = (pos.row - 1) * (CELL_H + gapY) + 6; 
                     
+                    // ⬇️ MEXA AQUI: Ajuste a LARGURA do preview verde (ex: adicione ou remova pixels no final)
                     const wPx = cw * fieldResizePreview.cols + gapX * (fieldResizePreview.cols - 1);
-                    const hPx = (CELL_H * fieldResizePreview.rows) + (gapY * (fieldResizePreview.rows - 1)) - 6;
+                    
+                    // ⬇️ MEXA AQUI: Ajuste a ALTURA do preview verde (atualmente o padrão tira 6px)
+                    const hPx = (CELL_H * fieldResizePreview.rows) + (gapY * (fieldResizePreview.rows - 1)) - 12;
 
                     return (
                       <div
