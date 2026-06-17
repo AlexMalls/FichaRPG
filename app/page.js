@@ -583,21 +583,24 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
         let ghostLeft = e.clientX - ghostW / 2;
         let ghostTop  = e.clientY - ghostH / 2;
-        if (rect) {
-          ghostLeft = Math.max(rect.left, Math.min(ghostLeft, rect.right  - ghostW));
-          ghostTop  = Math.max(rect.top,  Math.min(ghostTop,  rect.bottom - ghostH));
-        }
-
-        // ── Converte posição do fantasma para célula do grid interno ──
+        
+        // ── Converte posição do CURSOR (centro) para célula do grid interno ANTES de clampar ──
         const cell = rect ? (() => {
-          const relX = ghostLeft - rect.left;
-          const relY = ghostTop  - rect.top;
+          // Usar cursor direto, não a posição clamped do fantasma
+          const relX = e.clientX - rect.left - ghostW / 2;
+          const relY = e.clientY - rect.top  - ghostH / 2;
           const col = Math.floor(relX / (cw + gapX)) + 1;
           const row = Math.floor(relY / (CELL_H + gapY)) + 1;
           const clampedCol = Math.max(1, Math.min(col, currentCardSize.cols  - size.cols  + 1));
           const clampedRow = Math.max(1, Math.min(row, currentCardSize.rows - 1 - size.rows + 1));
           return { col: clampedCol, row: clampedRow };
         })() : null;
+
+        // ── Agora clamp o fantasma DEPOIS de calcular a célula ──
+        if (rect) {
+          ghostLeft = Math.max(rect.left, Math.min(ghostLeft, rect.right  - ghostW));
+          ghostTop  = Math.max(rect.top,  Math.min(ghostTop,  rect.bottom - ghostH));
+        }
 
         if (cell) {
           const positions = fieldPositionsRef.current;
