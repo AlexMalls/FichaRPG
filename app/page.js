@@ -24,6 +24,8 @@ const GRID_CONFIG = {
   alturaCell:    40,   // altura de cada célula em px
   gap:           8,    // espaçamento entre células em px
   paddingGrid:   16,   // padding interno do grid em px
+  opacidadeCelula: 0.00, // opacidade das células (0.0 a 1.0)
+  mostrarTextoCelula: false, // true = mostra "C:1 L:1", false = esconde
 };
 // ── aliases internos (não mexa) ──────────────────────────────
 const GRID_COLS    = GRID_CONFIG.colunas;
@@ -31,6 +33,15 @@ const GRID_ROWS    = GRID_CONFIG.linhas;
 const CELL_H       = GRID_CONFIG.alturaCell;
 const GAP          = GRID_CONFIG.gap;
 const GRID_PADDING = GRID_CONFIG.paddingGrid;
+// ============================================================
+
+// ============================================================
+// ⚙️  CONFIGURAÇÃO DO GRID INTERNO (dentro do CardMóvel)
+// ============================================================
+const GRID_INTERNO_CONFIG = {
+  opacidadeCelula:    0.00,   // opacidade das células internas (0.0 a 1.0)
+  mostrarTextoCelula: false,  // true = mostra "1:2", false = esconde
+};
 // ============================================================
 
 // ============ TEMA CENTRALIZADO ============
@@ -225,7 +236,32 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown 
 
 const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [cardMovelPos, setCardMovelPos]     = useState(ficha?.cardMovelPos || null);
-  const [cardSize, setCardSize]             = useState(ficha?.cardSize || { cols: 2, rows: 4 });
+  // Calcula o tamanho mínimo baseado nas posições e tamanhos dos campos
+  const calcularTamanhoMinimo = () => {
+    const positions = ficha?.fieldPositions || {
+      nome: { col: 1, row: 1 }, classe: { col: 2, row: 1 }, nivel: { col: 3, row: 1 },
+      alinhamento: { col: 1, row: 2 }, idade: { col: 2, row: 2 }, xp: { col: 3, row: 2 },
+    };
+    const sizes = ficha?.fieldSizes || {
+      nome: { cols: 1, rows: 1 }, classe: { cols: 1, rows: 1 }, nivel: { cols: 1, rows: 1 },
+      alinhamento: { cols: 1, rows: 1 }, idade: { cols: 1, rows: 1 }, xp: { cols: 1, rows: 1 },
+    };
+    let minCols = 1;
+    let minRows = 1;
+    for (const key in positions) {
+      const p = positions[key];
+      const s = sizes[key] || { cols: 1, rows: 1 };
+      if (p.col + s.cols - 1 > minCols) minCols = p.col + s.cols - 1;
+      if (p.row + s.rows - 1 > minRows) minRows = p.row + s.rows - 1;
+    }
+    return { cols: minCols, rows: minRows + 1 }; // +1 pelo cabeçalho
+  };
+
+  const [cardSize, setCardSize] = useState(() => {
+    // Se o usuário já salvou um tamanho, usa ele. Senão, calcula o mínimo.
+    if (ficha?.cardSize) return ficha.cardSize;
+    return calcularTamanhoMinimo();
+  });
   const [isDraggingCard, setIsDraggingCard] = useState(false);
   const [dragOffset, setDragOffset]         = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
@@ -233,6 +269,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [resizePreview, setResizePreview]   = useState(null);
   const [ghostSize, setGhostSize]           = useState({ w: 180, h: 100 });
   const [hoverCell, setHoverCell]           = useState(null);
+  const [ghostExpanded, setGhostExpanded]   = useState(false);
 
   // ── Estado dos campos do card móvel ──
   const [fichaData, setFichaData] = useState({
@@ -274,6 +311,17 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── Estado de resize dos campos ──
   const [resizingField, setResizingField] = useState(null);
   const [fieldResizePreview, setFieldResizePreview] = useState(null);
+  const [pushPreview, setPushPreview] = useState({}); 
+  const pushPreviewRef = React.useRef({});
+
+  // ── Seleção por área (marquee) ──
+  const [selectedFields, setSelectedFields]     = useState([]);
+  const selectedFieldsRef                       = React.useRef([]);
+  const [marquee, setMarquee]                   = useState(null);
+  const isMarqueeRef                            = React.useRef(false);
+  const marqueeStartRef                         = React.useRef({ x: 0, y: 0 });
+  const lastClickTimeRef                        = React.useRef(0);
+  const holdTimerRef                            = React.useRef(null);
   
   // ── largura calculada de uma célula do grid (atualizada via ResizeObserver) ──
   const [cellWidth, setCellWidth] = useState(null);
@@ -284,13 +332,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const resizeOrigin   = React.useRef({ col: 1, row: 1 });
   const dragOffsetRef  = React.useRef({ x: 0, y: 0 });
   const ghostSizeRef   = React.useRef({ w: 180, h: 100 });
-  const cardSizeRef    = React.useRef(ficha?.cardSize || { cols: 2, rows: 4 });
+  const cardSizeRef    = React.useRef(ficha?.cardSize || calcularTamanhoMinimo());
   
   // ── Refs para drag dos campos ──
   const isDraggingFieldRef = React.useRef(false);
   const cardGridRef = React.useRef(null);
   const draggingFieldKeyRef = React.useRef(null);
   
+  const dragStartPosRef = React.useRef(null); // posição inicial do campo arrastado
   // ── Refs para resize dos campos ──
   const isResizingFieldRef = React.useRef(false);
   const resizingFieldKeyRef = React.useRef(null);
@@ -310,6 +359,14 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   useEffect(() => {
     fieldSizesRef.current = fieldSizes;
   }, [fieldSizes]);
+
+  useEffect(() => {
+    selectedFieldsRef.current = selectedFields;
+  }, [selectedFields]);
+
+  useEffect(() => {
+    cardSizeRef.current = cardSize;
+  }, [cardSize]);
   
   // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
   const calcCellWidth = useCallback((containerWidth) => {
@@ -366,17 +423,19 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     const relY = y - rect.top;
     if (relX < 0 || relY < 0) return null;
     
-    // Calcular com base na largura disponível
     const availableWidth = rect.width;
     const cellW = cellWidth || (availableWidth / activeSize.cols);
-    const gapX = 14; // gap do grid interno é 14px
-    const gapY = 8;  // rowGap do grid interno é 8px
+    const gapX = 14;
+    const gapY = 8;
     
     const col = Math.floor(relX / (cellW + gapX)) + 1;
     const row = Math.floor(relY / (CELL_H + gapY)) + 1;
     
-    if (col < 1 || col > activeSize.cols || row < 1 || row > activeSize.rows - 1) return null;
-    return { col, row };
+    // ── CORREÇÃO: clamp para nunca sair dos limites do card ──
+    const clampedCol = Math.max(1, Math.min(col, activeSize.cols));
+    const clampedRow = Math.max(1, Math.min(row, activeSize.rows - 1));
+    
+    return { col: clampedCol, row: clampedRow };
   };
 
   const getOriginCellFromGhost = (mouseX, mouseY) => {
@@ -405,6 +464,58 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   useEffect(() => {
     const onMouseMove = (e) => {
+      // ── Ativa marquee ao arrastar (threshold de 4px) ──
+      if (marqueeStartRef.current?._pending && cardGridRef.current) {
+        const dx = e.clientX - marqueeStartRef.current._clientX;
+        const dy = e.clientY - marqueeStartRef.current._clientY;
+        if (Math.sqrt(dx * dx + dy * dy) > 4) {
+          marqueeStartRef.current._pending = false;
+          isMarqueeRef.current = true;
+          setMarquee({ x: marqueeStartRef.current.x, y: marqueeStartRef.current.y, w: 0, h: 0 });
+          document.body.classList.add('is-marquee');
+        }
+      }
+
+      // ── Atualiza marquee ──
+      if (isMarqueeRef.current && cardGridRef.current) {
+        const rect = cardGridRef.current.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        const start = marqueeStartRef.current;
+        const newMarquee = {
+          x: start.x,
+          y: start.y,
+          w: currentX - start.x,
+          h: currentY - start.y,
+        };
+        setMarquee(newMarquee);
+
+        // ── Atualiza seleção em tempo real ──
+        const selLeft   = Math.min(newMarquee.x, newMarquee.x + newMarquee.w);
+        const selRight  = Math.max(newMarquee.x, newMarquee.x + newMarquee.w);
+        const selTop    = Math.min(newMarquee.y, newMarquee.y + newMarquee.h);
+        const selBottom = Math.max(newMarquee.y, newMarquee.y + newMarquee.h);
+
+        const campos = mapearCamposGrid();
+        const cw = cellWidth || (rect.width / activeSize.cols);
+        const gapX = 14, gapY = 8;
+
+        const selecionados = campos.filter(campo => {
+          const pos  = fieldPositionsRef.current[campo.key];
+          const size = fieldSizesRef.current[campo.key] || { cols: 1, rows: 1 };
+          const fieldLeft   = (pos.col - 1) * (cw + gapX);
+          const fieldTop    = (pos.row - 1) * (CELL_H + gapY) + 6;
+          const fieldRight  = fieldLeft + cw * size.cols + gapX * (size.cols - 1);
+          const fieldBottom = fieldTop  + CELL_H * size.rows + gapY * (size.rows - 1);
+          return fieldLeft < selRight && fieldRight > selLeft &&
+                 fieldTop  < selBottom && fieldBottom > selTop;
+        });
+
+        const novaSelecao = selecionados.map(c => c.key);
+        setSelectedFields(novaSelecao);
+        selectedFieldsRef.current = novaSelecao;
+      }
+
       if (isDraggingRef.current) {
         setMousePos({ x: e.clientX, y: e.clientY });
         const cell = getOriginCellFromGhost(e.clientX, e.clientY);
@@ -420,7 +531,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           let targetCols = Math.max(1, Math.min(cell.col - origin.col + 1, GRID_COLS - origin.col + 1));
           let targetRows = Math.max(1, Math.min(cell.row - origin.row + 1, GRID_ROWS - origin.row + 1));
           
-          
           // 1. Descobrir até onde vão as textboxes internas
           let minCols = 1;
           let minRows = 1;
@@ -430,27 +540,24 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           for (const key in positions) {
             const p = positions[key];
             const s = sizes[key] || { cols: 1, rows: 1 };
-            const endCol = p.col + s.cols - 1; // Coluna final desta textbox
-            const endRow = p.row + s.rows - 1; // Linha final desta textbox
+            const endCol = p.col + s.cols - 1;
+            const endRow = p.row + s.rows - 1;
             
             if (endCol > minCols) minCols = endCol;
             if (endRow > minRows) minRows = endRow;
           }
 
-          // 🔽 A CORREÇÃO ENTRA AQUI 🔽
-          // O cabeçalho ocupa 1 linha. Logo, o card precisa da altura dos campos + 1.
           const cardMinRows = minRows + 1;
 
           let overdragRight = false;
           let overdragBottom = false;
 
-          // 2. Travar o tamanho se tentar engolir uma textbox e ativar o "Bounce"
           if (targetCols < minCols) {
             targetCols = minCols;
             overdragRight = true;
           }
-          if (targetRows < cardMinRows) {     // <-- Usa o novo limite (cardMinRows)
-            targetRows = cardMinRows;         // <-- E aqui também
+          if (targetRows < cardMinRows) {
+            targetRows = cardMinRows;
             overdragBottom = true;
           }
 
@@ -459,41 +566,83 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         }
       }
       
-      // ── DETEÇÃO DE COLISÃO NO ARRASTO (NOVO) ──
+      // ── ARRASTO COM BLOQUEIO DE SOBREPOSIÇÃO (SEM EMPURRAR) ──
       if (isDraggingFieldRef.current) {
         setFieldMousePos({ x: e.clientX, y: e.clientY });
-        const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
+
+        const draggingKey = draggingFieldKeyRef.current;
+        const size = fieldSizesRef.current[draggingKey] || { cols: 1, rows: 1 };
+        const currentCardSize = cardSizeRef.current;
+
+        // Detecta se é um arrasto em grupo logo aqui
+        const currentSelected = selectedFieldsRef.current;
+        const isGroupDrag = currentSelected.includes(draggingKey) && currentSelected.length > 1;
+
+        // ── Calcula posição do canto superior esquerdo do fantasma ──
+        const rect = cardGridRef.current?.getBoundingClientRect();
+        const cw = cellWidth || (rect ? rect.width / currentCardSize.cols : 80);
+        const gapX = 14, gapY = 8;
+        const ghostW = cw * size.cols + gapX * (size.cols - 1);
+        const ghostH = CELL_H * size.rows + gapY * (size.rows - 1);
+
+        // Se for grupo, o fantasma segue outra métrica (clientX - 60), senão, fica centralizado
+        let ghostLeft = isGroupDrag ? e.clientX - 60 : e.clientX - ghostW / 2;
+        let ghostTop  = isGroupDrag ? e.clientY - 10 : e.clientY - ghostH / 2;
         
+        // ── Célula calculada SEMPRE pela posição superior esquerda do fantasma ──
+        // Usamos o topo-esquerdo do fantasma + metade da largura da célula para o "snap",
+        // garantindo que a box amarela alinhe perfeitamente por onde o fantasma real transita.
+        const cell = rect ? (() => {
+          const relX = ghostLeft - rect.left;
+          const relY = ghostTop - rect.top;
+          
+          const snapX = relX + (cw / 2);
+          const snapY = relY + (CELL_H / 2);
+
+          const col = Math.floor(snapX / (cw + gapX)) + 1;
+          const row = Math.floor(snapY / (CELL_H + gapY)) + 1;
+          
+          const clampedCol = Math.max(1, Math.min(col, currentCardSize.cols  - size.cols  + 1));
+          const clampedRow = Math.max(1, Math.min(row, currentCardSize.rows - 1 - size.rows + 1));
+          return { col: clampedCol, row: clampedRow };
+        })() : null;
+
+        // ── Clamp do fantasma (só visual, não afeta mais o cálculo da célula) ──
+        if (rect && !isGroupDrag) {
+          ghostLeft = Math.max(rect.left, Math.min(ghostLeft, rect.right  - ghostW));
+          ghostTop  = Math.max(rect.top,  Math.min(ghostTop,  rect.bottom - ghostH));
+        }
+
         if (cell) {
-          const draggingKey = draggingFieldKeyRef.current;
-          const size = fieldSizesRef.current[draggingKey] || { cols: 1, rows: 1 };
           const positions = fieldPositionsRef.current;
           const sizes = fieldSizesRef.current;
-          const currentCardSize = cardSizeRef.current;
-          
-          let hasOverlap = false;
 
-          const leftA = cell.col;
+          const leftA  = cell.col;
           const rightA = cell.col + size.cols - 1;
-          const topA = cell.row;
+          const topA   = cell.row;
           const bottomA = cell.row + size.rows - 1;
 
-          // 1. Bloquear se a caixa for arrastada para fora dos limites da janela (grid)
-          if (rightA > currentCardSize.cols || bottomA > currentCardSize.rows - 1) {
+          let hasOverlap = false;
+
+          if (
+            cell.col < 1 || cell.row < 1 ||
+            rightA > currentCardSize.cols ||
+            bottomA > currentCardSize.rows - 1
+          ) {
             hasOverlap = true;
           } else {
-            // 2. Bloquear se bater noutra textbox
             for (const key in positions) {
               if (key === draggingKey) continue;
-              
-              const posB = positions[key];
+              if (isGroupDrag && currentSelected.includes(key)) continue;
+
+              const posB  = positions[key];
               const sizeB = sizes[key] || { cols: 1, rows: 1 };
-              
-              const leftB = posB.col;
+
+              const leftB  = posB.col;
               const rightB = posB.col + sizeB.cols - 1;
-              const topB = posB.row;
+              const topB   = posB.row;
               const bottomB = posB.row + sizeB.rows - 1;
-              
+
               if (leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB) {
                 hasOverlap = true;
                 break;
@@ -510,7 +659,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         }
       }
       
-      // ── DETEÇÃO DE COLISÃO NO REDIMENSIONAMENTO ──
+      // ── REDIMENSIONAMENTO COM BLOQUEIO DE SOBREPOSIÇÃO ──
       if (isResizingFieldRef.current) {
         const cell = getCellFromPointInCardGrid(e.clientX, e.clientY);
         if (cell) {
@@ -518,10 +667,13 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const currentSize = cardSizeRef.current;
           const resizingKey = resizingFieldKeyRef.current;
           
-          const cols = Math.max(1, Math.min(cell.col - origin.col + 1, currentSize.cols - origin.col + 1));
-          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, (currentSize.rows - 1) - origin.row + 1));
+          const maxCols = currentSize.cols - origin.col + 1;
+          const maxRows = (currentSize.rows - 1) - origin.row + 1;
           
-          let hasOverlap = false;
+          // ── CORREÇÃO: clamp DURO — o preview nunca cresce além da borda ──
+          const cols = Math.max(1, Math.min(cell.col - origin.col + 1, maxCols));
+          const rows = Math.max(1, Math.min(cell.row - origin.row + 1, maxRows));
+          
           const positions = fieldPositionsRef.current;
           const sizes = fieldSizesRef.current;
 
@@ -530,9 +682,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const topA = origin.row;
           const bottomA = origin.row + rows - 1;
 
+          let hasOverlap = false;
+
           for (const key in positions) {
-            if (key === resizingKey) continue; 
-            
+            if (key === resizingKey) continue;
             const posB = positions[key];
             const sizeB = sizes[key] || { cols: 1, rows: 1 };
             
@@ -543,18 +696,30 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
             
             if (leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB) {
               hasOverlap = true;
-              break; 
+              break;
             }
           }
+          
+          // ── Borda já foi clamped acima, só invalida se bater em outra caixa ──
+          const isValid = !hasOverlap;
 
-          const newPreview = { cols, rows, isValid: !hasOverlap };
-          setFieldResizePreview(newPreview); 
+          const newPreview = { cols, rows, isValid, hasPush: false };
+          setFieldResizePreview(newPreview);
           fieldResizePreviewRef.current = newPreview;
         }
       }
     };
 
     const onMouseUp = (e) => {
+      // ── Finaliza marquee ──
+      if (marqueeStartRef.current?._pending) {
+        marqueeStartRef.current._pending = false;
+      }
+      if (isMarqueeRef.current) {
+        handleCardGridMouseUp();
+        return;
+      }
+
       // 1. Redimensionamento do Card Principal
       if (isResizingRef.current) {
         isResizingRef.current = false;
@@ -585,43 +750,104 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         return;
       }
       
-      // ── IMPEDIR SALVAMENTO NO ARRASTO (NOVO) ──
+      // ── IMPEDIR SALVAMENTO NO ARRASTO ──
       if (isDraggingFieldRef.current) {
         isDraggingFieldRef.current = false;
         const fieldKey = draggingFieldKeyRef.current;
-        const finalHover = fieldHoverCellRef.current; // Puxa do Ref
-        
-        // ── SÓ SALVA A POSIÇÃO SE isValid FOR TRUE ──
-        if (finalHover && fieldKey && finalHover.isValid) {
-          setFieldPositions(prev => ({
-            ...prev,
-            [fieldKey]: { col: finalHover.col, row: finalHover.row }
-          }));
+        const finalHover = fieldHoverCellRef.current;
+        const startPos = dragStartPosRef.current;
+
+        if (finalHover && fieldKey && finalHover.isValid && startPos) {
+          const deltaCol = finalHover.col - startPos.col;
+          const deltaRow = finalHover.row - startPos.row;
+
+          const currentSelected = selectedFieldsRef.current;
+          const isGroupDrag = currentSelected.includes(fieldKey) && currentSelected.length > 1;
+
+          setFieldPositions(prev => {
+            const currentCardSize = cardSizeRef.current;
+
+            if (!isGroupDrag) {
+              const size = fieldSizesRef.current[fieldKey] || { cols: 1, rows: 1 };
+              const newCol = finalHover.col;
+              const newRow = finalHover.row;
+              // ── CORREÇÃO: valida que o campo inteiro cabe dentro do card ──
+              if (
+                newCol < 1 || newRow < 1 ||
+                newCol + size.cols - 1 > currentCardSize.cols ||
+                newRow + size.rows - 1 > currentCardSize.rows - 1
+              ) return prev;
+              return { ...prev, [fieldKey]: { col: newCol, row: newRow } };
+            }
+
+            const next = { ...prev };
+
+            const algumForaDoLimite = currentSelected.some(key => {
+              const pos = prev[key];
+              const size = fieldSizesRef.current[key] || { cols: 1, rows: 1 };
+              if (!pos) return false;
+              const newCol = pos.col + deltaCol;
+              const newRow = pos.row + deltaRow;
+              return (
+                newCol < 1 ||
+                newRow < 1 ||
+                newCol + size.cols - 1 > currentCardSize.cols ||
+                newRow + size.rows - 1 > currentCardSize.rows - 1
+              );
+            });
+
+            if (algumForaDoLimite) return prev;
+
+            currentSelected.forEach(key => {
+              const pos = prev[key];
+              if (pos) next[key] = { col: pos.col + deltaCol, row: pos.row + deltaRow };
+            });
+
+            return next;
+          });
         }
-        
+
         setDraggingField(null);
         setFieldMousePos({ x: 0, y: 0 });
         setFieldHoverCell(null);
-        fieldHoverCellRef.current = null; // Limpar a ref
+        fieldHoverCellRef.current = null;
+        dragStartPosRef.current = null;
         document.body.classList.remove('is-dragging-field');
         return;
       }
       
+      // ── SALVAR REDIMENSIONAMENTO E EMPURRÃO DAS CAIXAS ──
       if (isResizingFieldRef.current) {
         isResizingFieldRef.current = false;
         const fieldKey = resizingFieldKeyRef.current;
         const finalPreview = fieldResizePreviewRef.current;
+        const finalPush = pushPreviewRef.current;
         
         if (finalPreview && fieldKey && finalPreview.isValid) {
+          // 1. Salva o novo tamanho da caixa que foi puxada
           setFieldSizes(prev => ({
             ...prev,
             [fieldKey]: { cols: finalPreview.cols, rows: finalPreview.rows }
           }));
+          
+          // 2. Efetiva o empurrão nas outras caixas pra posição nova
+          if (finalPush && Object.keys(finalPush).length > 0) {
+            setFieldPositions(prev => {
+              const next = { ...prev };
+              for (const key in finalPush) {
+                next[key] = { col: finalPush[key].col, row: finalPush[key].row };
+              }
+              return next;
+            });
+          }
         }
         
+        // Limpa tudo
         setResizingField(null);
         setFieldResizePreview(null);
         fieldResizePreviewRef.current = null;
+        setPushPreview({});
+        pushPreviewRef.current = {};
         document.body.classList.remove('is-resizing-field');
         return;
       }
@@ -636,26 +862,47 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     };
   }, [resizePreview, cellWidth]);
 
-  const handleCardMouseDown = (e) => {
+  // ── Drag a partir da SIDEBAR ──
+  const handleCardMouseDownSidebar = (e) => {
     e.preventDefault();
-    
-    // Pegamos a posição do elemento clicado
     const rect = e.currentTarget.getBoundingClientRect();
-    
-    // O offset agora é a distância entre o clique e o canto do elemento
-    const offset = { 
-      x: e.clientX - rect.left, 
-      y: e.clientY - rect.top 
+
+    // O offset é onde o mouse clicou DENTRO do card da sidebar
+    // Assim o fantasma nasce no canto superior esquerdo do card, não no mouse
+    const offset = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
     };
-    
     setDragOffset(offset);
     dragOffsetRef.current = offset;
 
-    // Mantemos o tamanho do fantasma igual ao tamanho real do elemento
-    const ghostW = rect.width;
-    const ghostH = rect.height;
-    setGhostSize({ w: ghostW, h: ghostH });
-    ghostSizeRef.current = { w: ghostW, h: ghostH };
+    setGhostSize({ w: rect.width, h: rect.height });
+    ghostSizeRef.current = { w: rect.width, h: rect.height };
+
+    cardSizeRef.current = { ...cardSize };
+    setMousePos({ x: e.clientX, y: e.clientY });
+    setGhostExpanded(false); // começa pequeno
+    setIsDraggingCard(true);
+    isDraggingRef.current = true;
+    document.body.classList.add('is-dragging');
+    // no próximo frame expande para o tamanho real
+    requestAnimationFrame(() => setGhostExpanded(true));
+  };
+
+  // ── Drag a partir do GRID ──
+  const handleCardMouseDownGrid = (e) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    const offset = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+    setDragOffset(offset);
+    dragOffsetRef.current = offset;
+
+    setGhostSize({ w: rect.width, h: rect.height });
+    ghostSizeRef.current = { w: rect.width, h: rect.height };
 
     cardSizeRef.current = { ...cardSize };
     setMousePos({ x: e.clientX, y: e.clientY });
@@ -685,6 +932,79 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     draggingFieldKeyRef.current = fieldKey;
     setFieldMousePos({ x: e.clientX, y: e.clientY });
     document.body.classList.add('is-dragging-field');
+
+    // ── Registra posição inicial do campo arrastado (para calcular delta depois) ──
+    const startPos = fieldPositionsRef.current[fieldKey];
+    dragStartPosRef.current = startPos ? { ...startPos } : null;
+  };
+
+  // ── Inicia marquee com duplo clique + hold ──
+  const handleCardGridMouseDown = (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.target.tagName === 'LABEL') return;
+
+    // ── Desseleciona com 1 clique fora das boxes selecionadas ──
+    if (selectedFieldsRef.current.length > 0) {
+      const clickedField = e.target.closest('[data-field-key]');
+      const clickedKey = clickedField?.dataset?.fieldKey;
+      if (!clickedKey || !selectedFieldsRef.current.includes(clickedKey)) {
+        setSelectedFields([]);
+        selectedFieldsRef.current = [];
+      }
+    }
+
+    if (!cardGridRef.current) return;
+    const rect = cardGridRef.current.getBoundingClientRect();
+    const startX = e.clientX - rect.left;
+    const startY = e.clientY - rect.top;
+
+    // Armazena ponto de início mas NÃO ativa ainda
+    marqueeStartRef.current = { x: startX, y: startY };
+    marqueeStartRef.current._clientX = e.clientX;
+    marqueeStartRef.current._clientY = e.clientY;
+    marqueeStartRef.current._pending = true;
+  };
+
+  const handleCardGridMouseUp = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    if (!isMarqueeRef.current) return;
+    isMarqueeRef.current = false;
+    document.body.classList.remove('is-marquee');
+
+    // Calcular quais campos estão dentro da marquee
+    setMarquee(prev => {
+      if (!prev || !cardGridRef.current) return null;
+
+      const rect = cardGridRef.current.getBoundingClientRect();
+      const selLeft   = Math.min(prev.x, prev.x + prev.w);
+      const selRight  = Math.max(prev.x, prev.x + prev.w);
+      const selTop    = Math.min(prev.y, prev.y + prev.h);
+      const selBottom = Math.max(prev.y, prev.y + prev.h);
+
+      const campos = mapearCamposGrid();
+      const cw = cellWidth || (rect.width / activeSize.cols);
+      const gapX = 14, gapY = 8;
+
+      const selecionados = campos.filter(campo => {
+        const pos  = fieldPositionsRef.current[campo.key];
+        const size = fieldSizesRef.current[campo.key] || { cols: 1, rows: 1 };
+
+        const fieldLeft   = (pos.col - 1) * (cw + gapX);
+        const fieldTop    = (pos.row - 1) * (CELL_H + gapY) + 6;
+        const fieldRight  = fieldLeft + cw * size.cols + gapX * (size.cols - 1);
+        const fieldBottom = fieldTop  + CELL_H * size.rows + gapY * (size.rows - 1);
+
+        return fieldLeft < selRight && fieldRight > selLeft &&
+               fieldTop  < selBottom && fieldBottom > selTop;
+      });
+
+      setSelectedFields(selecionados.map(c => c.key));
+      return null;
+    });
   };
 
   const handleFieldResizeMouseDown = (fieldKey) => (e) => {
@@ -798,7 +1118,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
             {!cardMovelPos && (
             <div
-              onMouseDown={handleCardMouseDown}
+              onMouseDown={handleCardMouseDownSidebar}
               style={{
                 ...styles.cardMovel,
                 marginTop: '1rem',
@@ -836,29 +1156,40 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     gridRow: espaco.row,
                     ...(ocupado
                       ? { opacity: 0 }
-                      : preview
-                      ? {
-                          opacity: 1,
-                          border: '2px solid rgba(251, 191, 36, 0.85)',
-                          background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)',
-                          boxShadow: '0 0 16px rgba(251, 191, 36, 0.35)',
-                          transition: 'all 0.1s ease',
-                        }
-                      : { opacity: 0.5 }
+                      : { opacity: GRID_CONFIG.opacidadeCelula }
                     ),
                   }}
                 >
-                  <div style={styles.spaceCardContent}>
-                    C:{espaco.col} L:{espaco.row}
-                  </div>
+                  {GRID_CONFIG.mostrarTextoCelula && (
+                    <div style={styles.spaceCardContent}>
+                      C:{espaco.col} L:{espaco.row}
+                    </div>
+                  )}
                 </div>
               );
             })}
 
+            {/* Preview unificado do drop */}
+            {isDraggingCard && hoverCell && (
+              <div
+                style={{
+                  gridColumn: `${hoverCell.col} / span ${cardSize.cols}`,
+                  gridRow: `${hoverCell.row} / span ${cardSize.rows}`,
+                  borderRadius: '0.75rem',
+                  background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)',
+                  border: '2px solid rgba(251, 191, 36, 0.85)',
+                  boxShadow: '0 0 24px rgba(251, 191, 36, 0.35)',
+                  transition: 'all 0.1s ease',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                }}
+              />
+            )}
+
             {/* ✨ AQUI ESTÁ A MAGIA ✨ -> Card posicionado no grid (com as classes) */}
             {cardMovelPos && (
               <div
-                onMouseDown={handleCardMouseDown}
+                onMouseDown={handleCardMouseDownGrid}
                 className={`card-bounce-transition ${
                   cardOverdrag.right && cardOverdrag.bottom ? 'card-bounce-both' : 
                   cardOverdrag.right ? 'card-bounce-right' : 
@@ -885,7 +1216,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                 {/* GRID INTERNO COM CAMPOS */}
                 <div
                   ref={cardGridRef}
-                  onMouseDown={e => e.stopPropagation()}
+                  onMouseDown={(e) => { e.stopPropagation(); handleCardGridMouseDown(e); }}
                   style={{
                     display: 'grid',
                     // Mesmo número de colunas do card
@@ -912,13 +1243,19 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   {mapearCamposGrid().map((campo) => {
                     const fieldPos = fieldPositions[campo.key];
                     const fieldSize = fieldSizes[campo.key];
-                    const isCurrentlyDragging = draggingField === campo.key;
+                    const isGroupDrag = selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1;
+                    const isCurrentlyDragging = draggingField === campo.key || (isGroupDrag && selectedFieldsRef.current.includes(campo.key));
                     const isCurrentlyResizing = resizingField === campo.key;
-                    const activeFieldSize = isCurrentlyResizing && fieldResizePreview ? fieldResizePreview : fieldSize;
                     
+                    // ── MANTÉM O TAMANHO ORIGINAL DURANTE O RESIZE PARA A CAIXA NÃO PULAR ──
+                    const activeFieldSize = fieldSize;
+                    
+                    const isSelected = selectedFields.includes(campo.key);
+
                     return (
                       <div
                         key={campo.key}
+                        data-field-key={campo.key}
                         style={{
                           gridColumn: `${fieldPos.col} / span ${activeFieldSize.cols}`,
                           gridRow: `${fieldPos.row} / span ${activeFieldSize.rows}`,
@@ -929,9 +1266,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           display: 'flex',
                           flexDirection: 'column',
                           opacity: isCurrentlyDragging ? 0.4 : 1,
-                          transition: 'opacity 0.15s ease, grid-column 0.15s ease, grid-row 0.15s ease',
+                          transition: 'opacity 0.15s ease, outline 0.15s ease',
                           position: 'relative',
                           minHeight: `${CELL_H}px`,
+                          outline: isSelected ? '2px solid rgba(139, 92, 246, 0.9)' : 'none',
+                          boxShadow: isSelected ? '0 0 10px rgba(139, 92, 246, 0.4)' : 'none',
                         }}
                       >
                         <GridInputField
@@ -973,8 +1312,45 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     );
                   })}
 
-                  {/* Preview das células enquanto arrasta um campo */}
-                  {draggingField && fieldHoverCell && (
+                  {/* Preview das células enquanto arrasta um campo — GRUPO */}
+                  {draggingField && fieldHoverCell && selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1 &&
+                    selectedFieldsRef.current.map(key => {
+                      const pos = fieldPositions[key];
+                      const size = fieldSizes[key] || { cols: 1, rows: 1 };
+                      const startPos = dragStartPosRef.current;
+                      const deltaCol = startPos ? fieldHoverCell.col - startPos.col : 0;
+                      const deltaRow = startPos ? fieldHoverCell.row - startPos.row : 0;
+                      const previewCol = pos.col + deltaCol;
+                      const previewRow = pos.row + deltaRow;
+                      return (
+                        <div
+                          key={`group-preview-${key}`}
+                          style={{
+                            gridColumn: `${previewCol} / span ${size.cols}`,
+                            gridRow: `${previewRow} / span ${size.rows}`,
+                            margin: '0px',
+                            marginTop: '6px',
+                            borderRadius: '0.5rem',
+                            boxSizing: 'border-box',
+                            background: fieldHoverCell.isValid !== false
+                              ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)'
+                              : 'linear-gradient(135deg, rgba(248, 113, 113, 0.18) 0%, rgba(220, 38, 38, 0.18) 100%)',
+                            border: fieldHoverCell.isValid !== false
+                              ? '2px solid rgba(251, 191, 36, 0.85)'
+                              : '2px solid rgba(248, 113, 113, 0.85)',
+                            boxShadow: fieldHoverCell.isValid !== false
+                              ? '0 0 16px rgba(251, 191, 36, 0.35)'
+                              : '0 0 16px rgba(248, 113, 113, 0.35)',
+                            transition: 'all 0.1s ease',
+                            pointerEvents: 'none',
+                            zIndex: 5,
+                          }}
+                        />
+                      );
+                    })
+                  }
+                  {/* Preview das células enquanto arrasta um campo — INDIVIDUAL */}
+                  {draggingField && fieldHoverCell && !(selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1) && (
                     <div
                       style={{
                         gridColumn: `${fieldHoverCell.col} / span ${fieldSizes[draggingField]?.cols || 1}`,
@@ -986,21 +1362,15 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           : 'calc(100% - 6px)',
                         borderRadius: '0.5rem',
                         boxSizing: 'border-box',
-                        
-                        // 🔽 SE VÁLIDO = LARANJA | SE INVÁLIDO = VERMELHO 🔽
                         background: fieldHoverCell.isValid !== false
                           ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)' 
                           : 'linear-gradient(135deg, rgba(248, 113, 113, 0.18) 0%, rgba(220, 38, 38, 0.18) 100%)',
-                        
                         border: fieldHoverCell.isValid !== false
                           ? '2px solid rgba(251, 191, 36, 0.85)' 
                           : '2px solid rgba(248, 113, 113, 0.85)',
-                        
                         boxShadow: fieldHoverCell.isValid !== false
                           ? '0 0 16px rgba(251, 191, 36, 0.35)' 
                           : '0 0 16px rgba(248, 113, 113, 0.35)',
-                        // 🔼 -------------------------------------------- 🔼
-
                         transition: 'all 0.1s ease',
                         pointerEvents: 'none',
                         zIndex: 5,
@@ -1009,33 +1379,71 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                   )}
 
                   {/* Preview das células enquanto redimensiona um campo */}
-                  {resizingField && fieldResizePreview && (
+                  {resizingField && fieldResizePreview && (() => {
+                    // Calculamos a largura e altura exatas em pixels baseadas no grid para animar suavemente
+                    const rect = cardGridRef.current?.getBoundingClientRect();
+                    const cw = cellWidth || (rect ? rect.width / activeSize.cols : 80);
+                    const gapX = 14, gapY = 8;
+                    const pos = fieldPositions[resizingField];
+                    
+                    const leftPx = (pos.col - 1) * (cw + gapX);
+
+                    // 1. Define o recuo do topo que você escolheu (18px)
+                    const customTopMargin = 18;
+                    const topPx = (pos.row - 1) * (CELL_H + gapY) + customTopMargin; 
+                    
+                    const wPx = cw * fieldResizePreview.cols + gapX * (fieldResizePreview.cols - 1);
+                    
+                    // 2. Calcula a área crua do grid e a altura verdadeira do campo (corrigindo o bug do minHeight: 40px)
+                    const gridAreaHeight = (CELL_H * fieldResizePreview.rows) + (gapY * (fieldResizePreview.rows - 1));
+                    const actualFieldHeight = Math.max(CELL_H, gridAreaHeight - 6);
+                    
+                    // 3. Calcula hPx para bater perfeitamente no limite inferior, compensando a margem superior
+                    const hPx = actualFieldHeight + 6 - customTopMargin - 2;
+
+                    return (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: `${leftPx}px`,
+                          top: `${topPx}px`,
+                          width: `${wPx}px`,
+                          height: `${hPx}px`,
+                          borderRadius: '0.5rem',
+                          background: fieldResizePreview.isValid 
+                            ? 'linear-gradient(135deg, rgba(74, 222, 128, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%)' 
+                            : 'linear-gradient(135deg, rgba(248, 113, 113, 0.18) 0%, rgba(220, 38, 38, 0.18) 100%)',
+                          border: fieldResizePreview.isValid 
+                            ? '2px solid rgba(74, 222, 128, 0.85)' 
+                            : '2px solid rgba(248, 113, 113, 0.85)',
+                          boxShadow: fieldResizePreview.isValid 
+                            ? '0 0 16px rgba(74, 222, 128, 0.35)' 
+                            : '0 0 16px rgba(248, 113, 113, 0.35)',
+                          
+                          // ✨ AQUI ESTÁ A MÁGICA DA FLUIDEZ ✨
+                          transition: 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease',
+                          pointerEvents: 'none',
+                          zIndex: 5,
+                        }}
+                      />
+                    );
+                  })()}
+
+                  {/* Retângulo de seleção marquee */}
+                  {marquee && (
                     <div
                       style={{
-                        gridColumn: `${fieldPositions[resizingField].col} / span ${fieldResizePreview.cols}`,
-                        gridRow: `${fieldPositions[resizingField].row} / span ${fieldResizePreview.rows}`,
-                        margin: '0px',
-                        marginTop: '24px',
-                        height: fieldResizePreview.rows === 1 
-                          ? 'calc(100% - 6px - 16px)' 
-                          : 'calc(100% - 6px - 20px)',
-                        borderRadius: '0.3rem',
-                        
-                        background: fieldResizePreview.isValid 
-                          ? 'linear-gradient(135deg, rgba(74, 222, 128, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%)' 
-                          : 'linear-gradient(135deg, rgba(248, 113, 113, 0.18) 0%, rgba(220, 38, 38, 0.18) 100%)',
-                        
-                        border: fieldResizePreview.isValid 
-                          ? '2px solid rgba(74, 222, 128, 0.85)' 
-                          : '2px solid rgba(248, 113, 113, 0.85)',
-                        
-                        boxShadow: fieldResizePreview.isValid 
-                          ? '0 0 16px rgba(74, 222, 128, 0.35)' 
-                          : '0 0 16px rgba(248, 113, 113, 0.35)',
-        
-                        transition: 'all 0.1s ease',
+                        position: 'absolute',
+                        left:   `${Math.min(marquee.x, marquee.x + marquee.w)}px`,
+                        top:    `${Math.min(marquee.y, marquee.y + marquee.h)}px`,
+                        width:  `${Math.abs(marquee.w)}px`,
+                        height: `${Math.abs(marquee.h)}px`,
+                        border: '2px dashed rgba(139, 92, 246, 0.9)',
+                        borderRadius: '4px',
+                        background: 'rgba(139, 92, 246, 0.08)',
                         pointerEvents: 'none',
-                        zIndex: 5,
+                        zIndex: 20,
+                        boxShadow: '0 0 0 1px rgba(139, 92, 246, 0.2)',
                       }}
                     />
                   )}
@@ -1079,47 +1487,115 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           margin: '0px',
                           marginTop: '6px',
                           borderRadius: '0.5rem',
-                          opacity: 0.3,
+                          opacity: GRID_INTERNO_CONFIG.opacidadeCelula,
                         }}
                       >
-                        <div style={styles.spaceCardContent}>
-                          {col}:{row}
-                        </div>
+                        {GRID_INTERNO_CONFIG.mostrarTextoCelula && (
+                          <div style={styles.spaceCardContent}>
+                            {col}:{row}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
 
                 {/* Campo fantasma durante drag */}
-                {draggingField && (
-                  <div
-                    style={{
-                      position: 'fixed',
-                      left: `${fieldMousePos.x - 60}px`,
-                      top: `${fieldMousePos.y - 10}px`,
-                      width: '120px',
-                      height: '30px',
-                      background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.25) 0%, rgba(107, 91, 149, 0.25) 100%)',
-                      border: '1px solid rgba(232, 213, 240, 0.4)',
-                      borderRadius: '0.5rem',
-                      padding: '4px 8px',
-                      pointerEvents: 'none',
-                      zIndex: 10000,
-                      opacity: 0.7,
-                      cursor: 'grabbing',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '11px',
-                      color: '#E8D5F0',
-                      fontWeight: '600',
-                      boxShadow: '0 8px 24px rgba(232, 213, 240, 0.25)',
-                    }}
-                  >
-                    {mapearCamposGrid().find(c => c.key === draggingField)?.label}
-                  </div>
-                )}
+                {draggingField && selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1 && selectedFieldsRef.current.map(key => {
+                  const campo = mapearCamposGrid().find(c => c.key === key);
+                  if (!campo) return null;
+                  const pos = fieldPositions[key];
+                  const size = fieldSizes[key] || { cols: 1, rows: 1 };
+                  const startPos = dragStartPosRef.current;
+                  const rect = cardGridRef.current?.getBoundingClientRect();
+                  const cw = cellWidth || (rect ? rect.width / activeSize.cols : 80);
+                  const gapX = 14, gapY = 8;
+                  // Offset de cada campo em relação ao campo arrastado (em px)
+                  const draggedPos = startPos;
+                  const offsetCol = draggedPos ? pos.col - draggedPos.col : 0;
+                  const offsetRow = draggedPos ? pos.row - draggedPos.row : 0;
+                  const offsetX = offsetCol * (cw + gapX);
+                  const offsetY = offsetRow * (CELL_H + gapY);
+                  let ghostLeft = fieldMousePos.x - 60 + offsetX;
+                  let ghostTop  = fieldMousePos.y - 10 + offsetY;
+                  if (rect) {
+                    const ghostW2 = cw * size.cols + gapX * (size.cols - 1);
+                    const ghostH2 = CELL_H * size.rows + gapY * (size.rows - 1);
+                    ghostLeft = Math.max(rect.left, Math.min(ghostLeft, rect.right  - ghostW2));
+                    ghostTop  = Math.max(rect.top,  Math.min(ghostTop,  rect.bottom - ghostH2));
+                  }
+                  return (
+                    <div
+                      key={key}
+                      style={{
+                        position: 'fixed',
+                        left: `${ghostLeft}px`,
+                        top: `${ghostTop}px`,
+                        width: `${cw * size.cols + gapX * (size.cols - 1)}px`,
+                        height: `${CELL_H * size.rows + gapY * (size.rows - 1)}px`,
+                        background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.25) 0%, rgba(107, 91, 149, 0.25) 100%)',
+                        border: '1px solid rgba(232, 213, 240, 0.4)',
+                        borderRadius: '0.5rem',
+                        pointerEvents: 'none',
+                        zIndex: 10000,
+                        opacity: 0.7,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '11px',
+                        color: '#E8D5F0',
+                        fontWeight: '600',
+                        boxShadow: '0 8px 24px rgba(232, 213, 240, 0.25)',
+                      }}
+                    >
+                      {campo.label}
+                    </div>
+                  );
+                })}
+                {draggingField && !(selectedFieldsRef.current.includes(draggingField) && selectedFieldsRef.current.length > 1) && (() => {
+                  const rect = cardGridRef.current?.getBoundingClientRect();
+                  const cw = cellWidth || (rect ? rect.width / activeSize.cols : 80);
+                  const gapX = 14, gapY = 8;
+                  const size = fieldSizes[draggingField] || { cols: 1, rows: 1 };
+                  const ghostW = cw * size.cols + gapX * (size.cols - 1);
+                  const ghostH = CELL_H * size.rows + gapY * (size.rows - 1);
 
+                  // ── Clamp: mantém o fantasma dentro do cardGrid ──
+                  let rawLeft = fieldMousePos.x - ghostW / 2;
+                  let rawTop  = fieldMousePos.y - ghostH / 2;
+                  if (rect) {
+                    rawLeft = Math.max(rect.left, Math.min(rawLeft, rect.right  - ghostW));
+                    rawTop  = Math.max(rect.top,  Math.min(rawTop,  rect.bottom - ghostH));
+                  }
+
+                  return (
+                    <div
+                      style={{
+                        position: 'fixed',
+                        left: `${rawLeft}px`,
+                        top: `${rawTop}px`,
+                        width: `${ghostW}px`,
+                        height: `${ghostH}px`,
+                        background: 'linear-gradient(135deg, rgba(232, 213, 240, 0.25) 0%, rgba(107, 91, 149, 0.25) 100%)',
+                        border: '1px solid rgba(232, 213, 240, 0.4)',
+                        borderRadius: '0.5rem',
+                        pointerEvents: 'none',
+                        zIndex: 10000,
+                        opacity: 0.7,
+                        cursor: 'grabbing',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '11px',
+                        color: '#E8D5F0',
+                        fontWeight: '600',
+                        boxShadow: '0 8px 24px rgba(232, 213, 240, 0.25)',
+                      }}
+                    >
+                      {mapearCamposGrid().find(c => c.key === draggingField)?.label}
+                    </div>
+                  );
+                })()}
                 <button
                   onMouseDown={e => e.stopPropagation()}
                   onClick={() => setCardMovelPos(null)}
@@ -1188,16 +1664,26 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               style={{
                 ...styles.cardMovel,
                 position: 'fixed',
-                left: `${mousePos.x - dragOffset.x + 6}px`,
-                top:  `${mousePos.y - dragOffset.y + 6}px`,
-                width:  `${ghostSize.w - 12}px`,
-                height: `${ghostSize.h - 12}px`,
+                left: `${mousePos.x - dragOffset.x}px`,
+                top:  `${mousePos.y - dragOffset.y}px`,
+                width: !cardMovelPos
+                  ? ghostExpanded
+                    ? `${(cellWidth * activeSize.cols) + (GAP * (activeSize.cols - 1))}px`
+                    : `${ghostSize.w}px`
+                  : `${ghostSize.w}px`,
+                height: !cardMovelPos
+                  ? ghostExpanded
+                    ? `${(CELL_H * activeSize.rows) + (GAP * (activeSize.rows - 1))}px`
+                    : `${ghostSize.h}px`
+                  : `${ghostSize.h}px`,
                 pointerEvents: 'none',
                 zIndex: 9999,
-                opacity: 0.6,
+                opacity: 0.8,
                 cursor: 'grabbing',
-                boxShadow: '0 12px 32px rgba(232, 213, 240, 0.35)',
-                transition: 'none',
+                boxShadow: '0 20px 40px rgba(232, 213, 240, 0.4)',
+                transition: isDraggingCard && !cardMovelPos
+                  ? 'width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                  : 'none',
               }}
             >
               <div style={styles.cardMovelHeader}>
@@ -1866,7 +2352,7 @@ const styles = {
     transition: 'all 0.3s ease',
     position: 'relative',
     overflow: 'hidden',
-    opacity: 0.5,
+    opacity: GRID_CONFIG.opacidadeCelula,
   },
   spaceCardContent: {
     fontSize: '1.2rem',
@@ -2084,6 +2570,12 @@ const globalStyles = `
   .card-field-input:focus {
     border-color: rgba(232, 213, 240, 0.5) !important;
     background: rgba(0, 0, 0, 0.5) !important;
+  }
+
+  body.is-marquee,
+  body.is-marquee * {
+    cursor: crosshair !important;
+    user-select: none !important;
   }
 `;
 
