@@ -198,7 +198,7 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 );
 
 // ============ COMPONENTE DE INPUT PARA O GRID INTERNO ============
-const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown }) => (
+const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode }) => (
   <div style={{
     display: 'flex',
     flexDirection: 'column',
@@ -209,32 +209,37 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown 
     <label 
       style={{
         ...styles.gridFieldLabel,
-        cursor: 'grab',
+        cursor: isViewMode ? 'default' : 'grab',
         userSelect: 'none',
         padding: '1px 2px',
         borderRadius: '2px',
         transition: 'all 0.15s ease',
       }}
-      onMouseDown={onLabelMouseDown}
-      title="Arraste para reorganizar"
+      onMouseDown={isViewMode ? undefined : onLabelMouseDown}
+      title={isViewMode ? undefined : "Arraste para reorganizar"}
     >
       {label}
     </label>
-    <input
-      type="text"
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      onClick={e => e.stopPropagation()}
-      onMouseDown={e => e.stopPropagation()}
-      style={styles.gridFieldInput}
-    />
+    {isViewMode ? (
+      <div style={styles.gridFieldText}>{value}</div>
+    ) : (
+      <input
+        type="text"
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+        style={styles.gridFieldInput}
+      />
+    )}
   </div>
 );
 
 // ============ PÁGINA DE VISUALIZAÇÃO DA FICHA ============
 
 const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
+  const [isViewMode, setIsViewMode]         = useState(false);
   const [cardMovelPos, setCardMovelPos]     = useState(ficha?.cardMovelPos || null);
   // Calcula o tamanho mínimo baseado nas posições e tamanhos dos campos
   const calcularTamanhoMinimo = () => {
@@ -864,6 +869,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   // ── Drag a partir da SIDEBAR ──
   const handleCardMouseDownSidebar = (e) => {
+    if (isViewMode) return;
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
 
@@ -891,6 +897,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   // ── Drag a partir do GRID ──
   const handleCardMouseDownGrid = (e) => {
+    if (isViewMode) return;
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
 
@@ -912,6 +919,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   };
 
   const handleResizeMouseDown = (e) => {
+    if (isViewMode) return;
     e.preventDefault();
     e.stopPropagation();
     if (!cardMovelPos) return;
@@ -923,6 +931,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   };
 
   const handleFieldMouseDown = (fieldKey) => (e) => {
+    if (isViewMode) return;
     e.preventDefault();
     e.stopPropagation();
     if (!cardGridRef.current) return;
@@ -940,6 +949,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   // ── Inicia marquee com duplo clique + hold ──
   const handleCardGridMouseDown = (e) => {
+    if (isViewMode) return;
     if (e.target.tagName === 'INPUT') return;
     if (e.target.tagName === 'LABEL') return;
 
@@ -1008,6 +1018,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   };
 
   const handleFieldResizeMouseDown = (fieldKey) => (e) => {
+    if (isViewMode) return;
     e.preventDefault();
     e.stopPropagation();
     if (!cardGridRef.current) return;
@@ -1096,6 +1107,16 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           <div style={styles.sidebarContent}>
             <button onClick={onBack} style={styles.backButtonSidebar}>← Voltar</button>
 
+            <button
+              onClick={() => setIsViewMode(v => !v)}
+              style={{
+                ...styles.buttonSecondary,
+                width: '100%',
+              }}
+            >
+              {isViewMode ? '✏️ Modo Edição' : '👁️ Modo Visualização'}
+            </button>
+
             <button 
               onClick={() => onUpdate(ficha.id, { cardMovelPos, cardSize, fieldPositions, fieldSizes, ...fichaData })} 
               style={{
@@ -1116,7 +1137,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
               <p style={{ margin: 0 }}>Arraste para o grid e redimensione pelo canto ↘</p>
             </div>
 
-            {!cardMovelPos && (
+            {!isViewMode && !cardMovelPos && (
             <div
               onMouseDown={handleCardMouseDownSidebar}
               style={{
@@ -1279,9 +1300,11 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           onChange={(e) => handleFieldChange(campo.key, e.target.value)}
                           placeholder={campo.placeholder}
                           onLabelMouseDown={handleFieldMouseDown(campo.key)}
+                          isViewMode={isViewMode}
                         />
                         
                         {/* Botão de resize no canto inferior direito */}
+                        {!isViewMode && (
                         <div
                           onMouseDown={handleFieldResizeMouseDown(campo.key)}
                           title="Redimensionar"
@@ -1308,6 +1331,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                             <line x1="12" y1="12" x2="12" y2="12" stroke="#E8D5F0" strokeWidth="1.5" strokeLinecap="round"/>
                           </svg>
                         </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1613,7 +1637,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     fontSize: '10px',
                     fontWeight: 'bold',
                     cursor: 'pointer',
-                    display: 'flex',
+                    display: isViewMode ? 'none' : 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     lineHeight: 1,
@@ -1638,7 +1662,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                     width: 18,
                     height: 18,
                     cursor: 'nwse-resize',
-                    display: 'flex',
+                    display: isViewMode ? 'none' : 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     opacity: isResizing ? 1 : 0.5,
@@ -2422,6 +2446,21 @@ const styles = {
     transition: 'all 0.2s ease',
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
     boxSizing: 'border-box',
+  },
+  gridFieldText: {
+    width: '100%',
+    height: '100%',
+    padding: '2px 6px',
+    marginTop: '-6px',
+    color: '#E8D5F0',
+    fontSize: '1.0rem',
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+    boxSizing: 'border-box',
+    display: 'flex',
+    alignItems: 'center',
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+    textOverflow: 'ellipsis',
   },
 
   // ============ CARD EXPANDÍVEL ============
