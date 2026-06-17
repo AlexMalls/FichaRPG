@@ -678,19 +678,29 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           
           keysToCheck.forEach(key => {
             const pos = positions[key];
+            const leftA = pos.col;
             const rightA = pos.col + targetCols - 1;
+            const topA = pos.row;
             const bottomA = pos.row + targetRows - 1;
 
-            if (rightA > cardSizeRef.current.cols || bottomA > cardSizeRef.current.rows - 1) {
+            // ── Verifica se sai dos limites do card ──
+            if (leftA < 1 || topA < 1 || rightA > cardSizeRef.current.cols || bottomA > cardSizeRef.current.rows - 1) {
               hasOverlap = true;
             }
 
+            // ── Verifica colisão AABB com outros campos ──
             for (const otherKey in positions) {
               if (keysToCheck.includes(otherKey)) continue;
+              
               const posB = positions[otherKey];
               const sizeB = sizes[otherKey];
-              if (pos.col <= posB.col + sizeB.cols - 1 && rightA >= posB.col && 
-                  pos.row <= posB.row + sizeB.rows - 1 && bottomA >= posB.row) {
+              const leftB = posB.col;
+              const rightB = posB.col + sizeB.cols - 1;
+              const topB = posB.row;
+              const bottomB = posB.row + sizeB.rows - 1;
+
+              // ── Colisão ocorre se: leftA <= rightB AND rightA >= leftB AND topA <= bottomB AND bottomA >= topB ──
+              if (leftA <= rightB && rightA >= leftB && topA <= bottomB && bottomA >= topB) {
                 hasOverlap = true;
               }
             }
