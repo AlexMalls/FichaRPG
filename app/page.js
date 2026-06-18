@@ -357,10 +357,26 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   });
 
   const handleIncreaseFont = (key) => {
-    setFieldFontSizes(prev => ({
-      ...prev,
-      [key]: Math.min((prev[key] || 1.0) + 0.1, 3.0)
-    }));
+    const pos = fieldPositions[key];
+    const size = fieldSizes[key] || { cols: 1, rows: 1 };
+    const cw = cellWidth || 80;
+    const gapX = 14;
+    const larguraPx = cw * size.cols + gapX * (size.cols - 1);
+    const alturaDisponivel = (CELL_H * size.rows) + (8 * (size.rows - 1)) - 6;
+    const texto = fichaData[key];
+    const fontAtual = fieldFontSizes[key] || 1.0;
+    
+    // Testa com font aumentada
+    const novaFont = Math.min(fontAtual + 0.1, 3.0);
+    const alturaNecessaria = medirAlturaTexto(texto, larguraPx, novaFont);
+    
+    // Só aumenta se o texto ainda couber
+    if (alturaNecessaria <= alturaDisponivel) {
+      setFieldFontSizes(prev => ({
+        ...prev,
+        [key]: novaFont
+      }));
+    }
   };
 
   const handleDecreaseFont = (key) => {
