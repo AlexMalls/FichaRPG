@@ -198,20 +198,22 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 );
 
 // ============ COMPONENTE DE INPUT PARA O GRID INTERNO ============
-const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode, fontSize, onIncreaseFont, onDecreaseFont, maxHeight }) => {
+const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode, fontSize, onIncreaseFont, onDecreaseFont, maxHeight, rows }) => {
   const textareaRef = React.useRef(null);
 
   const handleChange = (e) => {
     const el = e.target;
     const prevValue = value;
-    // Aplica o valor temporariamente pra medir; se passar do limite, reverte
     onChange(e);
-    requestAnimationFrame(() => {
-      if (el && maxHeight && el.scrollHeight > maxHeight) {
-        // Reverte para o valor anterior se ultrapassar a altura da box
-        onChange({ target: { value: prevValue } });
-      }
-    });
+    
+    // Só valida altura se tiver mais de 1 linha
+    if (rows > 1) {
+      requestAnimationFrame(() => {
+        if (el && maxHeight && el.scrollHeight > maxHeight) {
+          onChange({ target: { value: prevValue } });
+        }
+      });
+    }
   };
 
   return (
@@ -1444,6 +1446,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           fontSize={fieldFontSizes[campo.key] || 1.0}
                           onIncreaseFont={() => handleIncreaseFont(campo.key)}
                           onDecreaseFont={() => handleDecreaseFont(campo.key)}
+                          rows={activeFieldSize.rows}
                           maxHeight={(activeFieldSize.rows * CELL_H) + (8 * (activeFieldSize.rows - 1)) - 18}
                         />
                         
