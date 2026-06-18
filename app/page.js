@@ -200,69 +200,17 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 // ============ COMPONENTE DE INPUT PARA O GRID INTERNO ============
 const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode, fontSize, onIncreaseFont, onDecreaseFont, maxHeight, rows }) => {
   const textareaRef = React.useRef(null);
-  const [blockedEdge, setBlockedEdge] = useState(null);
-  const blockTimerRef = React.useRef(null);
 
   const handleChange = (e) => {
     const el = e.target;
     const prevValue = value;
-    const newValue = e.target.value;
-
+    onChange(e);
+    
     // Só valida altura se tiver mais de 1 linha
     if (rows > 1) {
-      onChange(e);
       requestAnimationFrame(() => {
         if (el && maxHeight && el.scrollHeight > maxHeight) {
           onChange({ target: { value: prevValue } });
-        }
-      });
-    } else {
-      // Para uma linha, tenta inserir o novo texto
-      onChange(e);
-      requestAnimationFrame(() => {
-        if (el && maxHeight) {
-          // Mede a altura necessária com o novo texto
-          const testEl = document.createElement('div');
-          testEl.style.position = 'absolute';
-          testEl.style.visibility = 'hidden';
-          testEl.style.zIndex = '-1';
-          testEl.style.top = '-9999px';
-          testEl.style.left = '-9999px';
-          testEl.style.boxSizing = 'border-box';
-          testEl.style.whiteSpace = 'nowrap';
-          testEl.style.padding = '2px 6px';
-          testEl.style.fontSize = `${fontSize}rem`;
-          testEl.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-          testEl.textContent = newValue;
-          document.body.appendChild(testEl);
-
-          const textWidth = testEl.scrollWidth;
-          const containerWidth = el.parentElement?.offsetWidth || maxHeight;
-          
-          document.body.removeChild(testEl);
-
-          // Se o texto vaza horizontalmente, bloqueia e mostra feedback
-          if (textWidth > containerWidth - 12) { // -12 para padding
-            onChange({ target: { value: prevValue } });
-            setBlockedEdge('right');
-            
-            if (blockTimerRef.current) clearTimeout(blockTimerRef.current);
-            blockTimerRef.current = setTimeout(() => {
-              setBlockedEdge(null);
-            }, 1200);
-            return;
-          }
-
-          // Se ultrapassou a altura, bloqueia e mostra feedback
-          if (el.scrollHeight > maxHeight) {
-            onChange({ target: { value: prevValue } });
-            setBlockedEdge('bottom');
-            
-            if (blockTimerRef.current) clearTimeout(blockTimerRef.current);
-            blockTimerRef.current = setTimeout(() => {
-              setBlockedEdge(null);
-            }, 1200);
-          }
         }
       });
     }
@@ -275,7 +223,6 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
       width: '100%',
       height: '100%',
       gap: '2px',
-      position: 'relative',
     }}>
       <div
         style={{
@@ -317,54 +264,15 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
       {isViewMode ? (
         <div style={{ ...styles.gridFieldText, fontSize: `${fontSize}rem` }}>{value}</div>
       ) : (
-        <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={handleChange}
-            placeholder={placeholder}
-            onClick={e => e.stopPropagation()}
-            onMouseDown={e => e.stopPropagation()}
-            style={{ 
-              ...styles.gridFieldInput, 
-              fontSize: `${fontSize}rem`, 
-              resize: 'none', 
-              overflow: 'hidden',
-              position: 'relative',
-              zIndex: 1,
-            }}
-          />
-          
-          {/* Feedback visual da aresta bloqueada */}
-          {blockedEdge === 'right' && (
-            <div
-              className="edge-pulse-right"
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                bottom: 0,
-                width: '2px',
-                pointerEvents: 'none',
-                zIndex: 2,
-              }}
-            />
-          )}
-          {blockedEdge === 'bottom' && (
-            <div
-              className="edge-pulse-bottom"
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: '2px',
-                pointerEvents: 'none',
-                zIndex: 2,
-              }}
-            />
-          )}
-        </div>
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={handleChange}
+          placeholder={placeholder}
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          style={{ ...styles.gridFieldInput, fontSize: `${fontSize}rem`, resize: 'none', overflow: 'hidden' }}
+        />
       )}
     </div>
   );
@@ -1682,6 +1590,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           boxShadow: fieldResizePreview.isValid 
                             ? '0 0 16px rgba(74, 222, 128, 0.35)' 
                             : '0 0 16px rgba(248, 113, 113, 0.35)',
+                          
+                          // ✨ AQUI ESTÁ A MÁGICA DA FLUIDEZ ✨
                           transition: 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease',
                           pointerEvents: 'none',
                           zIndex: 5,
@@ -2804,19 +2714,19 @@ const globalStyles = `
     50% { opacity: 0.5; }
   }
 
-  /* 🔽 CSS DA MOLA PARA CARD MÓVEL 🔽 */
+  /* 🔽 CSS DA MOLA ATUALIZADO (Inclui as transições base para nada quebrar) 🔽 */
   .card-bounce-transition {
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease, opacity 0.15s ease, grid-column 0.1s ease, grid-row 0.1s ease !important;
     transform-origin: top left;
   }
   
   .card-bounce-right {
-    transform: scaleX(0.97);
+    transform: scaleX(0.97); /* Encolhe ~10px na direita */
     box-shadow: inset -24px 0 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
   }
   
   .card-bounce-bottom {
-    transform: scaleY(0.97);
+    transform: scaleY(0.97); /* Encolhe ~10px na base */
     box-shadow: inset 0 -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
   }
   
@@ -2824,27 +2734,7 @@ const globalStyles = `
     transform: scale(0.97);
     box-shadow: inset -24px -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
   }
-  /* 🔼 ============================================================ 🔼 */
-
-  /* 🔽 ANIMAÇÕES DE PISCADA PARA ARESTAS 🔽 */
-  @keyframes edgePulseRight {
-    0%, 100% { boxShadow: inset -2px 0 8px rgba(248, 113, 113, 0), inset -1px 0 0 rgba(248, 113, 113, 0); }
-    50% { boxShadow: inset -2px 0 8px rgba(248, 113, 113, 0.8), inset -1px 0 0 rgba(248, 113, 113, 1); }
-  }
-
-  @keyframes edgePulseBottom {
-    0%, 100% { boxShadow: inset 0 -2px 8px rgba(248, 113, 113, 0), inset 0 -1px 0 rgba(248, 113, 113, 0); }
-    50% { boxShadow: inset 0 -2px 8px rgba(248, 113, 113, 0.8), inset 0 -1px 0 rgba(248, 113, 113, 1); }
-  }
-
-  .edge-pulse-right {
-    animation: edgePulseRight 0.6s ease-in-out infinite;
-  }
-
-  .edge-pulse-bottom {
-    animation: edgePulseBottom 0.6s ease-in-out infinite;
-  }
-  /* 🔼 ============================================================ 🔼 */
+  /* 🔼 ==================================================================== 🔼 */
   
   @keyframes slideIn {
     from {
