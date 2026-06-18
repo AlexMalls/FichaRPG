@@ -1597,7 +1597,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
                     return (
                       <div
-                        className={fieldBounceType ? `field-bounce-transition field-bounce-${fieldBounceType}` : ''}
+                        className={fieldBounceType ? `field-bounce-transition` : ''}
                         style={{
                           position: 'absolute',
                           left: `${leftPx}px`,
@@ -1611,11 +1611,22 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           border: fieldResizePreview.isValid 
                             ? '2px solid rgba(74, 222, 128, 0.85)' 
                             : '2px solid rgba(248, 113, 113, 0.85)',
-                          boxShadow: fieldResizePreview.isValid 
-                            ? '0 0 16px rgba(74, 222, 128, 0.35)' 
-                            : '0 0 16px rgba(248, 113, 113, 0.35)',
-                          
-                          // ✨ AQUI ESTÁ A MÁGICA DA FLUIDEZ ✨
+                          boxShadow: fieldBounceType === 'right'
+                            ? 'inset -24px 0 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8)'
+                            : fieldBounceType === 'bottom'
+                            ? 'inset 0 -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8)'
+                            : fieldBounceType === 'both'
+                            ? 'inset -24px -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8)'
+                            : (fieldResizePreview.isValid 
+                              ? '0 0 16px rgba(74, 222, 128, 0.35)' 
+                              : '0 0 16px rgba(248, 113, 113, 0.35)'),
+                          transform: fieldBounceType === 'right'
+                            ? 'scaleX(0.97)'
+                            : fieldBounceType === 'bottom'
+                            ? 'scaleY(0.97)'
+                            : fieldBounceType === 'both'
+                            ? 'scale(0.97)'
+                            : 'none',
                           transition: fieldBounceType 
                             ? 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease'
                             : 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease',
