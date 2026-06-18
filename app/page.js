@@ -370,8 +370,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     const novaFont = Math.min(fontAtual + 0.1, 3.0);
     const alturaNecessaria = medirAlturaTexto(texto, larguraPx, novaFont);
     
-    // Só aumenta se o texto ainda couber
-    if (alturaNecessaria <= alturaDisponivel) {
+    // Bloqueia se: altura não cabe OU texto vaza horizontalmente (8888)
+    if (alturaNecessaria <= alturaDisponivel && alturaNecessaria !== 8888) {
       setFieldFontSizes(prev => ({
         ...prev,
         [key]: novaFont
@@ -487,7 +487,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     el.textContent = texto || '';
     // Com nowrap, se o scrollWidth > larguraPx, o texto vaza horizontalmente
     const vazaHorizontal = el.scrollWidth > larguraPx;
-    return vazaHorizontal ? larguraPx + 9999 : el.scrollHeight;
+    return vazaHorizontal ? 8888 : el.scrollHeight;
   };
   
   // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
@@ -827,11 +827,19 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const cw = cellWidth || 80;
           const gapX = 14;
           const larguraPx = cw * cols + gapX * (cols - 1);
+          const larguraPxAtual = cw * sizes[resizingKey].cols + gapX * (sizes[resizingKey].cols - 1);
           const alturaDisponivel = (CELL_H * rows) + (8 * (rows - 1)) - 6;
           const texto = fichaDataRef.current[resizingKey];
           const fonte = fieldFontSizesRef.current[resizingKey] || 1.0;
           const alturaNecessaria = medirAlturaTexto(texto, larguraPx, fonte);
+          
+          // Só bloqueia se:
+          // 1. A altura não cabe OU
+          // 2. A largura está diminuindo E o texto vaza (8888 indica overflow horizontal)
           if (alturaNecessaria > alturaDisponivel) {
+            textoNaoCabe = true;
+          }
+          if (larguraPx < larguraPxAtual && alturaNecessaria === 8888) {
             textoNaoCabe = true;
           }
           
