@@ -463,7 +463,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     cardSizeRef.current = cardSize;
   }, [cardSize]);
 
-  // ── Mede a altura necessária para um texto, dada largura/fonte (usa elemento oculto reutilizável) ──
+  // ── Mede se o texto cabe na largura/fonte dada (usa elemento oculto reutilizável) ──
   const measureRef = React.useRef(null);
   const medirAlturaTexto = (texto, larguraPx, fontSizeRem) => {
     if (!measureRef.current) {
@@ -475,19 +475,24 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       el.style.left = '-9999px';
       el.style.boxSizing = 'border-box';
       el.style.whiteSpace = 'nowrap';
-      el.style.overflow = 'hidden';
       el.style.padding = '2px 6px';
       el.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
       document.body.appendChild(el);
       measureRef.current = el;
     }
     const el = measureRef.current;
-    el.style.width = `${larguraPx}px`;
     el.style.fontSize = `${fontSizeRem}rem`;
     el.textContent = texto || '';
-    // Com nowrap, se o scrollWidth > larguraPx, o texto vaza horizontalmente
-    const vazaHorizontal = el.scrollWidth > larguraPx;
-    return vazaHorizontal ? 8888 : el.scrollHeight;
+
+    // Mede a largura NATURAL do texto (sem restrição)
+    el.style.width = 'auto';
+    const textWidth = el.scrollWidth;
+
+    // Se vaza horizontalmente → retorna 8888 como marcador
+    if (textWidth > larguraPx) return 8888;
+
+    // Senão retorna a altura da linha (para validar fonte vs altura da box)
+    return el.scrollHeight;
   };
   
   // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
