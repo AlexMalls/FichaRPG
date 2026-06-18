@@ -200,17 +200,69 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 // ============ COMPONENTE DE INPUT PARA O GRID INTERNO ============
 const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode, fontSize, onIncreaseFont, onDecreaseFont, maxHeight, rows }) => {
   const textareaRef = React.useRef(null);
+  const [blockedEdge, setBlockedEdge] = useState(null);
+  const blockTimerRef = React.useRef(null);
 
   const handleChange = (e) => {
     const el = e.target;
     const prevValue = value;
-    onChange(e);
-    
+    const newValue = e.target.value;
+
     // Só valida altura se tiver mais de 1 linha
     if (rows > 1) {
+      onChange(e);
       requestAnimationFrame(() => {
         if (el && maxHeight && el.scrollHeight > maxHeight) {
           onChange({ target: { value: prevValue } });
+        }
+      });
+    } else {
+      // Para uma linha, tenta inserir o novo texto
+      onChange(e);
+      requestAnimationFrame(() => {
+        if (el && maxHeight) {
+          // Mede a altura necessária com o novo texto
+          const testEl = document.createElement('div');
+          testEl.style.position = 'absolute';
+          testEl.style.visibility = 'hidden';
+          testEl.style.zIndex = '-1';
+          testEl.style.top = '-9999px';
+          testEl.style.left = '-9999px';
+          testEl.style.boxSizing = 'border-box';
+          testEl.style.whiteSpace = 'nowrap';
+          testEl.style.padding = '2px 6px';
+          testEl.style.fontSize = `${fontSize}rem`;
+          testEl.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+          testEl.textContent = newValue;
+          document.body.appendChild(testEl);
+
+          const textWidth = testEl.scrollWidth;
+          const containerWidth = el.parentElement?.offsetWidth || maxHeight;
+          
+          document.body.removeChild(testEl);
+
+          // Se o texto vaza horizontalmente, bloqueia e mostra feedback
+          if (textWidth > containerWidth - 12) { // -12 para padding
+            onChange({ target: { value: prevValue } });
+            setBlockedEdge('right');
+            
+            if (blockTimerRef.current) clearTimeout(blockTimerRef.current);
+            blockTimerRef.current = setTimeout(() => {
+              setBlockedEdge(null);
+            }, 1200);
+            return;
+          }
+
+          // Se ultrapassou a altura, bloqueia e mostra feedback
+          if (el.scrollHeight > maxHeight) {
+            onChange({ target: { value: prevValue } });
+            setBlockedEdge('bottom');
+            
+            if (blockTimerRef.current) clearTimeout(blockTimerRef.current);
+            blockTimerRef.current = setTimeout(() => {
+              setBlockedEdge(null);
+            }, 1200);
+          }
         }
       });
     }
@@ -223,6 +275,7 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
       width: '100%',
       height: '100%',
       gap: '2px',
+      position: 'relative',
     }}>
       <div
         style={{
@@ -264,15 +317,54 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
       {isViewMode ? (
         <div style={{ ...styles.gridFieldText, fontSize: `${fontSize}rem` }}>{value}</div>
       ) : (
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={handleChange}
-          placeholder={placeholder}
-          onClick={e => e.stopPropagation()}
-          onMouseDown={e => e.stopPropagation()}
-          style={{ ...styles.gridFieldInput, fontSize: `${fontSize}rem`, resize: 'none', overflow: 'hidden' }}
-        />
+        <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={handleChange}
+            placeholder={placeholder}
+            onClick={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
+            style={{ 
+              ...styles.gridFieldInput, 
+              fontSize: `${fontSize}rem`, 
+              resize: 'none', 
+              overflow: 'hidden',
+              position: 'relative',
+              zIndex: 1,
+            }}
+          />
+          
+          {/* Feedback visual da aresta bloqueada */}
+          {blockedEdge === 'right' && (
+            <div
+              className="edge-pulse-right"
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: '2px',
+                pointerEvents: 'none',
+                zIndex: 2,
+              }}
+            />
+          )}
+          {blockedEdge === 'bottom' && (
+            <div
+              className="edge-pulse-bottom"
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '2px',
+                pointerEvents: 'none',
+                zIndex: 2,
+              }}
+            />
+          )}
+        </div>
       )}
     </div>
   );
@@ -398,7 +490,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── Estado de resize dos campos ──
   const [resizingField, setResizingField] = useState(null);
   const [fieldResizePreview, setFieldResizePreview] = useState(null);
-  const [fieldBounceType, setFieldBounceType] = useState(null);
   const [pushPreview, setPushPreview] = useState({}); 
   const pushPreviewRef = React.useRef({});
 
@@ -851,27 +942,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           // ── Borda já foi clamped acima, só invalida se bater em outra caixa ou texto não couber ──
           const isValid = !hasOverlap && !textoNaoCabe;
 
-          // ── Detectar tipo de bounce (se excedeu limites) ──
-          const requestedCols = cell.col - origin.col + 1;
-          const requestedRows = cell.row - origin.row + 1;
-          const exceedsWidth = requestedCols > maxCols;
-          const exceedsHeight = requestedRows > maxRows;
-          
-          let bounceType = null;
-          if (exceedsWidth && exceedsHeight) {
-            bounceType = 'both';
-          } else if (exceedsWidth) {
-            bounceType = 'right';
-          } else if (exceedsHeight) {
-            bounceType = 'bottom';
-          }
-          
-          if (!isValid) {
-            setFieldBounceType(bounceType);
-          } else {
-            setFieldBounceType(null);
-          }
-
           const newPreview = { cols, rows, isValid, hasPush: false };
           setFieldResizePreview(newPreview);
           fieldResizePreviewRef.current = newPreview;
@@ -1014,7 +1084,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         // Limpa tudo
         setResizingField(null);
         setFieldResizePreview(null);
-        setFieldBounceType(null);
         fieldResizePreviewRef.current = null;
         setPushPreview({});
         pushPreviewRef.current = {};
@@ -1597,7 +1666,6 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
                     return (
                       <div
-                        className={fieldBounceType ? `field-bounce-transition` : ''}
                         style={{
                           position: 'absolute',
                           left: `${leftPx}px`,
@@ -1611,25 +1679,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           border: fieldResizePreview.isValid 
                             ? '2px solid rgba(74, 222, 128, 0.85)' 
                             : '2px solid rgba(248, 113, 113, 0.85)',
-                          boxShadow: fieldBounceType === 'right'
-                            ? 'inset -24px 0 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8)'
-                            : fieldBounceType === 'bottom'
-                            ? 'inset 0 -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8)'
-                            : fieldBounceType === 'both'
-                            ? 'inset -24px -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8)'
-                            : (fieldResizePreview.isValid 
-                              ? '0 0 16px rgba(74, 222, 128, 0.35)' 
-                              : '0 0 16px rgba(248, 113, 113, 0.35)'),
-                          transform: fieldBounceType === 'right'
-                            ? 'scaleX(0.97)'
-                            : fieldBounceType === 'bottom'
-                            ? 'scaleY(0.97)'
-                            : fieldBounceType === 'both'
-                            ? 'scale(0.97)'
-                            : 'none',
-                          transition: fieldBounceType 
-                            ? 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease'
-                            : 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease',
+                          boxShadow: fieldResizePreview.isValid 
+                            ? '0 0 16px rgba(74, 222, 128, 0.35)' 
+                            : '0 0 16px rgba(248, 113, 113, 0.35)',
+                          transition: 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease',
                           pointerEvents: 'none',
                           zIndex: 5,
                         }}
@@ -2773,25 +2826,23 @@ const globalStyles = `
   }
   /* 🔼 ============================================================ 🔼 */
 
-  /* 🔽 CSS DA MOLA PARA CAMPOS 🔽 */
-  .field-bounce-transition {
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease, background 0.2s ease, border 0.2s ease !important;
-    transform-origin: top left;
+  /* 🔽 ANIMAÇÕES DE PISCADA PARA ARESTAS 🔽 */
+  @keyframes edgePulseRight {
+    0%, 100% { boxShadow: inset -2px 0 8px rgba(248, 113, 113, 0), inset -1px 0 0 rgba(248, 113, 113, 0); }
+    50% { boxShadow: inset -2px 0 8px rgba(248, 113, 113, 0.8), inset -1px 0 0 rgba(248, 113, 113, 1); }
   }
-  
-  .field-bounce-right {
-    transform: scaleX(0.97);
-    box-shadow: inset -24px 0 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
+
+  @keyframes edgePulseBottom {
+    0%, 100% { boxShadow: inset 0 -2px 8px rgba(248, 113, 113, 0), inset 0 -1px 0 rgba(248, 113, 113, 0); }
+    50% { boxShadow: inset 0 -2px 8px rgba(248, 113, 113, 0.8), inset 0 -1px 0 rgba(248, 113, 113, 1); }
   }
-  
-  .field-bounce-bottom {
-    transform: scaleY(0.97);
-    box-shadow: inset 0 -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
+
+  .edge-pulse-right {
+    animation: edgePulseRight 0.6s ease-in-out infinite;
   }
-  
-  .field-bounce-both {
-    transform: scale(0.97);
-    box-shadow: inset -24px -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
+
+  .edge-pulse-bottom {
+    animation: edgePulseBottom 0.6s ease-in-out infinite;
   }
   /* 🔼 ============================================================ 🔼 */
   
