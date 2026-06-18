@@ -809,7 +809,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const cw = cellWidth || 80;
           const gapX = 14;
           const larguraPx = cw * cols + gapX * (cols - 1);
-          const alturaDisponivel = (CELL_H * rows) + (8 * (rows - 1)) - 18;
+          const alturaDisponivel = (CELL_H * rows) + (8 * (rows - 1)) - 6;
           const texto = fichaDataRef.current[resizingKey];
           const fonte = fieldFontSizesRef.current[resizingKey] || 1.0;
           const alturaNecessaria = medirAlturaTexto(texto, larguraPx, fonte);
