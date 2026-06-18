@@ -198,22 +198,33 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 );
 
 // ============ COMPONENTE DE INPUT PARA O GRID INTERNO ============
-const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode, fontSize, onIncreaseFont, onDecreaseFont, maxHeight, rows }) => {
+const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode, fontSize, onIncreaseFont, onDecreaseFont, maxHeight, maxWidth, rows }) => {
   const textareaRef = React.useRef(null);
+  const measureRef2 = React.useRef(null);
+
+  const medirTexto = (texto, larguraPx, fontSizeRem) => {
+    if (!measureRef2.current) {
+      const el = document.createElement("div");
+      el.style.cssText = "position:absolute;visibility:hidden;z-index:-1;top:-9999px;left:-9999px;box-sizing:border-box;white-space:nowrap;padding:2px 6px;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;";
+      document.body.appendChild(el);
+      measureRef2.current = el;
+    }
+    const el = measureRef2.current;
+    el.style.fontSize = fontSizeRem + "rem";
+    el.textContent = texto || "";
+    el.style.width = "auto";
+    if (el.scrollWidth > larguraPx) return 8888;
+    return el.scrollHeight;
+  };
 
   const handleChange = (e) => {
-    const el = e.target;
-    const prevValue = value;
-    onChange(e);
-    
-    // Só valida altura se tiver mais de 1 linha
-    if (rows > 1) {
-      requestAnimationFrame(() => {
-        if (el && maxHeight && el.scrollHeight > maxHeight) {
-          onChange({ target: { value: prevValue } });
-        }
-      });
+    const novoValor = e.target.value;
+    if (maxWidth) {
+      const altura = medirTexto(novoValor, maxWidth, fontSize);
+      if (altura === 8888) return;
+      if (maxHeight && altura > maxHeight) return;
     }
+    onChange(e);
   };
 
   return (
@@ -1448,6 +1459,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                           onDecreaseFont={() => handleDecreaseFont(campo.key)}
                           rows={activeFieldSize.rows}
                           maxHeight={(activeFieldSize.rows * CELL_H) + (8 * (activeFieldSize.rows - 1)) - 18}
+                          maxWidth={cellWidth ? cellWidth * activeFieldSize.cols + 14 * (activeFieldSize.cols - 1) : undefined}
                         />
                         
                         {/* Botão de resize no canto inferior direito */}
