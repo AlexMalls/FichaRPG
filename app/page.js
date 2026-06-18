@@ -398,6 +398,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   // ── Estado de resize dos campos ──
   const [resizingField, setResizingField] = useState(null);
   const [fieldResizePreview, setFieldResizePreview] = useState(null);
+  const [fieldBounceType, setFieldBounceType] = useState(null);
   const [pushPreview, setPushPreview] = useState({}); 
   const pushPreviewRef = React.useRef({});
 
@@ -850,6 +851,27 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           // ── Borda já foi clamped acima, só invalida se bater em outra caixa ou texto não couber ──
           const isValid = !hasOverlap && !textoNaoCabe;
 
+          // ── Detectar tipo de bounce (se excedeu limites) ──
+          const requestedCols = cell.col - origin.col + 1;
+          const requestedRows = cell.row - origin.row + 1;
+          const exceedsWidth = requestedCols > maxCols;
+          const exceedsHeight = requestedRows > maxRows;
+          
+          let bounceType = null;
+          if (exceedsWidth && exceedsHeight) {
+            bounceType = 'both';
+          } else if (exceedsWidth) {
+            bounceType = 'right';
+          } else if (exceedsHeight) {
+            bounceType = 'bottom';
+          }
+          
+          if (!isValid) {
+            setFieldBounceType(bounceType);
+          } else {
+            setFieldBounceType(null);
+          }
+
           const newPreview = { cols, rows, isValid, hasPush: false };
           setFieldResizePreview(newPreview);
           fieldResizePreviewRef.current = newPreview;
@@ -992,6 +1014,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
         // Limpa tudo
         setResizingField(null);
         setFieldResizePreview(null);
+        setFieldBounceType(null);
         fieldResizePreviewRef.current = null;
         setPushPreview({});
         pushPreviewRef.current = {};
@@ -1574,6 +1597,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
                     return (
                       <div
+                        className={fieldBounceType ? `field-bounce-transition field-bounce-${fieldBounceType}` : ''}
                         style={{
                           position: 'absolute',
                           left: `${leftPx}px`,
@@ -1592,7 +1616,9 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                             : '0 0 16px rgba(248, 113, 113, 0.35)',
                           
                           // ✨ AQUI ESTÁ A MÁGICA DA FLUIDEZ ✨
-                          transition: 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease',
+                          transition: fieldBounceType 
+                            ? 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease'
+                            : 'width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border 0.2s ease',
                           pointerEvents: 'none',
                           zIndex: 5,
                         }}
@@ -2714,19 +2740,19 @@ const globalStyles = `
     50% { opacity: 0.5; }
   }
 
-  /* 🔽 CSS DA MOLA ATUALIZADO (Inclui as transições base para nada quebrar) 🔽 */
+  /* 🔽 CSS DA MOLA PARA CARD MÓVEL 🔽 */
   .card-bounce-transition {
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease, opacity 0.15s ease, grid-column 0.1s ease, grid-row 0.1s ease !important;
     transform-origin: top left;
   }
   
   .card-bounce-right {
-    transform: scaleX(0.97); /* Encolhe ~10px na direita */
+    transform: scaleX(0.97);
     box-shadow: inset -24px 0 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
   }
   
   .card-bounce-bottom {
-    transform: scaleY(0.97); /* Encolhe ~10px na base */
+    transform: scaleY(0.97);
     box-shadow: inset 0 -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
   }
   
@@ -2734,7 +2760,29 @@ const globalStyles = `
     transform: scale(0.97);
     box-shadow: inset -24px -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
   }
-  /* 🔼 ==================================================================== 🔼 */
+  /* 🔼 ============================================================ 🔼 */
+
+  /* 🔽 CSS DA MOLA PARA CAMPOS 🔽 */
+  .field-bounce-transition {
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease, background 0.2s ease, border 0.2s ease !important;
+    transform-origin: top left;
+  }
+  
+  .field-bounce-right {
+    transform: scaleX(0.97);
+    box-shadow: inset -24px 0 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
+  }
+  
+  .field-bounce-bottom {
+    transform: scaleY(0.97);
+    box-shadow: inset 0 -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
+  }
+  
+  .field-bounce-both {
+    transform: scale(0.97);
+    box-shadow: inset -24px -24px 24px -12px rgba(248, 113, 113, 0.6), inset 0 0 0 2px rgba(248, 113, 113, 0.8) !important;
+  }
+  /* 🔼 ============================================================ 🔼 */
   
   @keyframes slideIn {
     from {
