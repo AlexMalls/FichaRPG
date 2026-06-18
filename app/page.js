@@ -833,15 +833,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
           const fonte = fieldFontSizesRef.current[resizingKey] || 1.0;
           const alturaNecessaria = medirAlturaTexto(texto, larguraPx, fonte);
           
-          // Só bloqueia se:
-          // 1. A altura não cabe OU
-          // 2. A largura está diminuindo E o texto vaza (8888 indica overflow horizontal)
-          if (alturaNecessaria > alturaDisponivel) {
-            textoNaoCabe = true;
-          }
-          if (larguraPx < larguraPxAtual && alturaNecessaria === 8888) {
-            textoNaoCabe = true;
-          }
+          const vazaHorizontal = alturaNecessaria === 8888;
+          const vazaVertical = !vazaHorizontal && alturaNecessaria > alturaDisponivel;
+
+          // Bloqueia só se: altura não cabe OU largura diminuiu com overflow horizontal
+          if (vazaVertical) textoNaoCabe = true;
+          if (vazaHorizontal && larguraPx < larguraPxAtual) textoNaoCabe = true;
           
           // ── Borda já foi clamped acima, só invalida se bater em outra caixa ou texto não couber ──
           const isValid = !hasOverlap && !textoNaoCabe;
