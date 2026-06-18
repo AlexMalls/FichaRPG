@@ -2562,8 +2562,9 @@ const styles = {
     transition: 'all 0.2s ease',
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
     boxSizing: 'border-box',
-    wordWrap: 'break-word',
-    whiteSpace: 'pre-wrap',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   gridFieldText: {
     width: '100%',
@@ -2575,8 +2576,8 @@ const styles = {
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
     boxSizing: 'border-box',
     overflow: 'hidden',
-    wordWrap: 'break-word',
-    whiteSpace: 'pre-wrap',
+    whiteSpace: 'nowrap',
+    textOverflow: 'ellipsis',
   },
   fontControls: {
     display: 'flex',
