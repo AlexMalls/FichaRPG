@@ -474,8 +474,8 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
       el.style.top = '-9999px';
       el.style.left = '-9999px';
       el.style.boxSizing = 'border-box';
-      el.style.wordWrap = 'break-word';
-      el.style.whiteSpace = 'pre-wrap';
+      el.style.whiteSpace = 'nowrap';
+      el.style.overflow = 'hidden';
       el.style.padding = '2px 6px';
       el.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
       document.body.appendChild(el);
@@ -485,7 +485,9 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
     el.style.width = `${larguraPx}px`;
     el.style.fontSize = `${fontSizeRem}rem`;
     el.textContent = texto || '';
-    return el.scrollHeight;
+    // Com nowrap, se o scrollWidth > larguraPx, o texto vaza horizontalmente
+    const vazaHorizontal = el.scrollWidth > larguraPx;
+    return vazaHorizontal ? larguraPx + 9999 : el.scrollHeight;
   };
   
   // ── calcula a largura de uma célula a partir da largura atual do gridRef ──
