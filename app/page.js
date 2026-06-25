@@ -211,7 +211,8 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
     }
     const el = measureRef2.current;
     el.style.fontSize = fontSizeRem + "rem";
-    el.textContent = texto || "";
+    // Substitui espaços normais por NBSP para que espaços no final/sequência sejam medidos corretamente
+    el.textContent = (texto || "").replace(/ /g, "\u00A0");
     el.style.width = "auto";
     if (el.scrollWidth > larguraPx) return 8888;
     return el.scrollHeight;
