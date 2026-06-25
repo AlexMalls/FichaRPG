@@ -217,8 +217,14 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
     return el.scrollHeight;
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
+  };
+
   const handleChange = (e) => {
-    const novoValor = e.target.value;
+    const novoValor = e.target.value.replace(/\n/g, '');
     if (maxWidth) {
       const altura = medirTexto(novoValor, maxWidth, fontSize);
       if (altura === 8888) return;
@@ -279,6 +285,7 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
           ref={textareaRef}
           value={value}
           onChange={handleChange}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           onClick={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
