@@ -16,6 +16,146 @@ import {
 import { db } from '../firebase';
 
 // ============================================================
+// 📦 SISTEMA DE TIPOS DE CAMPOS — estrutura escalável
+// ============================================================
+const FIELD_TYPES_SYSTEM = {
+  // TIPO: TEXTO SIMPLES
+  'simples-text': {
+    name: 'Texto simples',
+    label: 'Texto simples',
+    category: 'texto',
+    features: {
+      allowLineBreak: false,
+      allowTransparency: false,
+      allowFontSizeChange: true,
+      allowCustomization: false,
+      maxLines: 1,
+    },
+    defaults: {
+      fontSize: 1.0,
+    }
+  },
+  
+  // TIPO: NÚMERO SIMPLES
+  'simples-numero': {
+    name: 'Número simples',
+    label: 'Número simples',
+    category: 'numero',
+    features: {
+      allowLineBreak: false,
+      allowTransparency: false,
+      allowFontSizeChange: true,
+      allowCustomization: false,
+      maxLines: 1,
+      onlyNumbers: true,
+    },
+    defaults: {
+      fontSize: 1.0,
+    }
+  },
+
+  // TIPO: TEXTO COMPLEXO (futuro)
+  'complexo-text': {
+    name: 'Texto complexo',
+    label: 'Texto complexo',
+    category: 'texto',
+    features: {
+      allowLineBreak: true,
+      allowTransparency: true,
+      allowFontSizeChange: true,
+      allowCustomization: true,
+      maxLines: null,
+      supportRichText: true,
+    },
+    defaults: {
+      fontSize: 1.0,
+    }
+  },
+
+  // TIPO: TEXTO LONGO (futuro)
+  'longo-text': {
+    name: 'Texto longo',
+    label: 'Texto longo',
+    category: 'texto',
+    features: {
+      allowLineBreak: true,
+      allowTransparency: false,
+      allowFontSizeChange: true,
+      allowCustomization: false,
+      maxLines: null,
+    },
+    defaults: {
+      fontSize: 0.9,
+    }
+  },
+};
+
+// ── Configuração de campos: define qual tipo cada campo usa ──
+const CAMPOS_CONFIGURACAO = {
+  nome: {
+    key: 'nome',
+    label: 'Nome',
+    placeholder: 'Digite o nome',
+    type: 'simples-text',
+  },
+  classe: {
+    key: 'classe',
+    label: 'Classe',
+    placeholder: 'Ex: Mago',
+    type: 'simples-text',
+  },
+  nivel: {
+    key: 'nivel',
+    label: 'Nível',
+    placeholder: 'Ex: 1',
+    type: 'simples-numero',
+  },
+  alinhamento: {
+    key: 'alinhamento',
+    label: 'Alinhamento',
+    placeholder: 'Ex: Neutro',
+    type: 'simples-text',
+  },
+  idade: {
+    key: 'idade',
+    label: 'Idade',
+    placeholder: 'Ex: 25',
+    type: 'simples-numero',
+  },
+  xp: {
+    key: 'xp',
+    label: 'XP',
+    placeholder: 'Ex: 0',
+    type: 'simples-numero',
+  },
+};
+
+// ── Helper: obter tipo de um campo ──
+const getFieldType = (fieldKey) => {
+  const fieldConfig = CAMPOS_CONFIGURACAO[fieldKey];
+  if (!fieldConfig) return null;
+  return FIELD_TYPES_SYSTEM[fieldConfig.type];
+};
+
+// ── Helper: validar entrada conforme tipo ──
+const validateFieldInput = (fieldKey, value) => {
+  const fieldType = getFieldType(fieldKey);
+  if (!fieldType) return true;
+  
+  // Se o tipo só aceita números
+  if (fieldType.features.onlyNumbers) {
+    return /^\d*$/.test(value);
+  }
+  
+  // Se o tipo não permite quebra de linha
+  if (!fieldType.features.allowLineBreak) {
+    return !value.includes('\n');
+  }
+  
+  return true;
+};
+
+// ============================================================
 // ⚙️  CONFIGURAÇÃO DO GRID — mexa aqui à vontade
 // ============================================================
 const GRID_CONFIG = {
@@ -198,9 +338,10 @@ const ExpandableCard = ({ title, fields, expanded, onToggle }) => (
 );
 
 // ============ COMPONENTE DE INPUT PARA O GRID INTERNO ============
-const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown, isViewMode, fontSize, onIncreaseFont, onDecreaseFont, maxHeight, maxWidth, rows }) => {
+const GridInputField = ({ label, fieldKey, value, onChange, placeholder, onLabelMouseDown, isViewMode, fontSize, onIncreaseFont, onDecreaseFont, maxHeight, maxWidth, rows }) => {
   const textareaRef = React.useRef(null);
   const measureRef2 = React.useRef(null);
+  const fieldType = getFieldType(fieldKey);
 
   const medirTexto = (texto, larguraPx, fontSizeRem) => {
     if (!measureRef2.current) {
@@ -218,19 +359,33 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !fieldType?.features?.allowLineBreak) {
       e.preventDefault();
     }
   };
 
   const handleChange = (e) => {
-    const novoValor = e.target.value.replace(/\n/g, '');
+    let novoValor = e.target.value;
+    
+    // Validar conforme tipo
+    if (!validateFieldInput(fieldKey, novoValor)) {
+      return;
+    }
+    
+    // Se tipo não permite quebra, remove
+    if (!fieldType?.features?.allowLineBreak) {
+      novoValor = novoValor.replace(/\n/g, '');
+    }
+    
     if (maxWidth) {
       const altura = medirTexto(novoValor, maxWidth, fontSize);
       if (altura === 8888) return;
       if (maxHeight && altura > maxHeight) return;
     }
-    onChange(e);
+    
+    // Criar novo event com valor modificado
+    const newEvent = { ...e, target: { ...e.target, value: novoValor } };
+    onChange(newEvent);
   };
 
   return (
@@ -269,6 +424,17 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
           title={isViewMode ? undefined : "Arraste para reorganizar"}
         >
           {label}
+          {fieldType && (
+            <span style={{
+              fontSize: '0.55rem',
+              opacity: 0.6,
+              marginLeft: '3px',
+              fontWeight: '500',
+              letterSpacing: '0.2px',
+            }}>
+              ({fieldType.label})
+            </span>
+          )}
         </label>
         {!isViewMode && (
           <div style={styles.fontControls} onMouseDown={e => e.stopPropagation()}>
@@ -337,13 +503,12 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
   const [ghostExpanded, setGhostExpanded]   = useState(false);
 
   // ── Estado dos campos do card móvel ──
-  const [fichaData, setFichaData] = useState({
-    nome: ficha?.nome || '',
-    classe: ficha?.classe || '',
-    nivel: ficha?.nivel || '',
-    idade: ficha?.idade || '',
-    alinhamento: ficha?.alinhamento || '',
-    xp: ficha?.xp || '',
+  const [fichaData, setFichaData] = useState(() => {
+    const initialData = {};
+    Object.keys(CAMPOS_CONFIGURACAO).forEach(key => {
+      initialData[key] = ficha?.[key] || '';
+    });
+    return initialData;
   });
 
   // ── Posições dos campos dentro do grid interno ──
@@ -1226,14 +1391,10 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
 
   // ── Mapeamento de campos para posições no grid interno ──
   const mapearCamposGrid = () => {
-    const campos = [
-      { key: 'nome', label: 'Nome', placeholder: 'Digite o nome' },
-      { key: 'classe', label: 'Classe', placeholder: 'Ex: Mago' },
-      { key: 'nivel', label: 'Nível', placeholder: 'Ex: 1' },
-      { key: 'alinhamento', label: 'Alinhamento', placeholder: 'Ex: Neutro' },
-      { key: 'idade', label: 'Idade', placeholder: 'Ex: 25' },
-      { key: 'xp', label: 'XP', placeholder: 'Ex: 0' },
-    ];
+    const campos = Object.values(CAMPOS_CONFIGURACAO).map(config => ({
+      ...config,
+      type: FIELD_TYPES_SYSTEM[config.type],
+    }));
     
     // Adicionar posição e tamanho do estado
     return campos.map(campo => ({
@@ -1455,6 +1616,7 @@ const FichaDetailView = ({ ficha, onBack, onUpdate }) => {
                         }}
                       >
                         <GridInputField
+                          fieldKey={campo.key}
                           label={campo.label}
                           value={fichaData[campo.key]}
                           onChange={(e) => handleFieldChange(campo.key, e.target.value)}
