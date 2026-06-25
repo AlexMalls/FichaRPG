@@ -211,15 +211,20 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
     }
     const el = measureRef2.current;
     el.style.fontSize = fontSizeRem + "rem";
-    // Substitui espaços normais por NBSP para que espaços no final/sequência sejam medidos corretamente
-    el.textContent = (texto || "").replace(/ /g, "\u00A0");
+    el.textContent = texto || "";
     el.style.width = "auto";
     if (el.scrollWidth > larguraPx) return 8888;
     return el.scrollHeight;
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
+  };
+
   const handleChange = (e) => {
-    const novoValor = e.target.value;
+    const novoValor = e.target.value.replace(/\n/g, '');
     if (maxWidth) {
       const altura = medirTexto(novoValor, maxWidth, fontSize);
       if (altura === 8888) return;
@@ -280,6 +285,7 @@ const GridInputField = ({ label, value, onChange, placeholder, onLabelMouseDown,
           ref={textareaRef}
           value={value}
           onChange={handleChange}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           onClick={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
